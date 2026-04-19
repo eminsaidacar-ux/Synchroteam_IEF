@@ -1,4 +1,5 @@
 import ChipSelect from '../../ui/ChipSelect.jsx';
+import ProductPicker from '../../ui/ProductPicker.jsx';
 
 const TYPES     = ['Aluminium', 'PVC', 'Acier'];
 const MARQUES   = ['Somfy', 'Nice', 'Simu'];
@@ -8,6 +9,7 @@ export default function SpecsVolet({ specs, onChange }) {
   const set = (k, v) => onChange({ ...specs, [k]: v });
   return (
     <div className="space-y-4">
+      <ProductPicker famille="volet_roulant" specs={specs} onChange={onChange} />
       <ChipSelect label="Type" value={specs.type} options={TYPES} onChange={(v) => set('type', v)} />
       <label className="flex items-center gap-2">
         <input type="checkbox" checked={!!specs.motorise}

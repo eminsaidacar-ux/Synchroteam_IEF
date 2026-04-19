@@ -1,4 +1,5 @@
 import ChipSelect from '../../ui/ChipSelect.jsx';
+import ProductPicker from '../../ui/ProductPicker.jsx';
 
 const TYPES   = ['Coulissant', 'Battant', 'Levant', 'Barrière levante', 'Bollard'];
 const MARQUES = ['Came', 'Roger', 'BFT', 'Nice', 'Faac'];
@@ -8,6 +9,7 @@ export default function SpecsPortail({ specs, onChange }) {
   const set = (k, v) => onChange({ ...specs, [k]: v });
   return (
     <div className="space-y-4">
+      <ProductPicker famille="portail" specs={specs} onChange={onChange} />
       <ChipSelect label="Type" value={specs.type} options={TYPES} onChange={(v) => set('type', v)} />
       <div>
         <label>Largeur (mm)</label>

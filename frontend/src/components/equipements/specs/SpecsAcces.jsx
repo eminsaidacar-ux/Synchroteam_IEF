@@ -1,4 +1,5 @@
 import ChipSelect from '../../ui/ChipSelect.jsx';
+import ProductPicker from '../../ui/ProductPicker.jsx';
 
 const TYPES      = ['Lecteur badge', 'Digicode', 'Interphone', 'Visiophone', 'Contrôleur'];
 const PROTOCOLES = ['Wiegand', 'OSDP', '125kHz', '13.56MHz'];
@@ -7,6 +8,7 @@ export default function SpecsAcces({ specs, onChange }) {
   const set = (k, v) => onChange({ ...specs, [k]: v });
   return (
     <div className="space-y-4">
+      <ProductPicker famille="acces" specs={specs} onChange={onChange} />
       <ChipSelect label="Type" value={specs.type} options={TYPES} onChange={(v) => set('type', v)} />
       <div>
         <label>Marque</label>

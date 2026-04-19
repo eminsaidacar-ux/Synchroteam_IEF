@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Plus, FileText } from 'lucide-react';
+import { Plus, FileText, QrCode } from 'lucide-react';
 import { useSite } from '../hooks/useSites.js';
 import { useEquipements } from '../hooks/useEquipements.js';
 import EquipementCard from '../components/equipements/EquipementCard.jsx';
@@ -38,8 +38,11 @@ export default function SiteDetail() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <a href={`/sites/${siteId}/qr-sheet`} target="_blank" rel="noreferrer" className="btn" title="Planche QR imprimable">
+            <QrCode size={16} /> <span className="hidden sm:inline">QR</span>
+          </a>
           <Link to={`/rapports?site=${siteId}`} className="btn">
-            <FileText size={16} /> Rapport
+            <FileText size={16} /> <span className="hidden sm:inline">Rapport</span>
           </Link>
           <button className="btn btn-primary" onClick={() => nav(`/sites/${siteId}/audit`)}>
             <Plus size={16} /> Équipement

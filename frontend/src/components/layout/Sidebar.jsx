@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Building2, FileText, Upload } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Upload, Calculator } from 'lucide-react';
 
 const items = [
   { to: '/',         label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/sites',    label: 'Sites',     icon: Building2 },
   { to: '/rapports', label: 'Rapports',  icon: FileText },
+  { to: '/devis',    label: 'Pré-devis', icon: Calculator },
   { to: '/import',   label: 'Import',    icon: Upload },
 ];
 

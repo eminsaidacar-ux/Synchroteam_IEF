@@ -4,10 +4,12 @@ import FamilleSelector from './FamilleSelector.jsx';
 import SpecsRouter from './SpecsRouter.jsx';
 import PhotoCapture from '../ui/PhotoCapture.jsx';
 import PhotoGrid from './PhotoGrid.jsx';
-import { ETATS, PRIORITES, FAMILLES } from '../../lib/familles.js';
+import QrCode, { qrUrlFor } from '../ui/QrCode.jsx';
+import { ETATS, PRIORITES } from '../../lib/familles.js';
 import { useUpsertEquipement } from '../../hooks/useEquipements.js';
 import { useUploadPhoto } from '../../hooks/usePhotos.js';
 import { useAuth } from '../../lib/auth.jsx';
+import { buildRef } from '../../lib/refBuilder.js';
 
 const DEFAULT_ACTIONS = [
   'Remplacement joint CF',
@@ -26,6 +28,7 @@ export default function EquipementForm({ site, equipement, onSaved }) {
 
   const [famille, setFamille]           = useState(equipement?.famille ?? 'porte');
   const [ref, setRef]                   = useState(equipement?.ref ?? '');
+  const [refDirty, setRefDirty]         = useState(!!equipement?.ref);
   const [niveau, setNiveau]             = useState(equipement?.niveau ?? '');
   const [zone, setZone]                 = useState(equipement?.zone ?? '');
   const [emplacement, setEmplacement]   = useState(equipement?.emplacement ?? '');
@@ -39,12 +42,23 @@ export default function EquipementForm({ site, equipement, onSaved }) {
 
   const niveaux = site?.niveaux ?? [];
 
+  // Auto-génère la ref normalisée tant que l'utilisateur n'a pas édité
+  // manuellement. Dès qu'il modifie le champ, on fige (refDirty = true).
   useEffect(() => {
-    if (!isNew || ref) return;
-    const prefix = FAMILLES.find((f) => f.key === famille)?.refPrefix ?? 'E';
-    const num = String((site?.equipements?.length ?? 0) + 1).padStart(3, '0');
-    setRef(`${prefix}${num}`);
-  }, [famille, isNew, ref, site]);
+    if (!isNew || refDirty) return;
+    const ordre = (site?.equipements?.length ?? 0) + 1;
+    setRef(buildRef({ famille, specs, niveau, zone, ordre }));
+  }, [famille, specs, niveau, zone, isNew, refDirty, site]);
+
+  const onRefChange = (e) => {
+    setRef(e.target.value);
+    setRefDirty(true);
+  };
+  const regenerateRef = () => {
+    const ordre = (site?.equipements?.length ?? 0) + 1;
+    setRef(buildRef({ famille, specs, niveau, zone, ordre }));
+    setRefDirty(false);
+  };
 
   async function save() {
     setSaving(true); setError(null);
@@ -87,12 +101,32 @@ export default function EquipementForm({ site, equipement, onSaved }) {
         <FamilleSelector value={famille} onChange={setFamille} disabled={!isNew} />
       </section>
 
+      {!isNew && equipement?.id && (
+        <section className="card p-4 flex items-center gap-4">
+          <QrCode value={qrUrlFor({ siteId: site.id, equipementId: equipement.id })} size={96} />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-muted">Scanner pour revenir ici</div>
+            <div className="ref text-sm truncate">{equipement.ref}</div>
+            <a className="btn btn-ghost mt-2 text-xs" href={`/sites/${site.id}/qr-sheet`} target="_blank" rel="noreferrer">
+              Planche QR du site →
+            </a>
+          </div>
+        </section>
+      )}
+
       <section className="card p-4 space-y-3">
         <h2 className="font-semibold">Identification</h2>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label>Réf.</label>
-            <input className="w-full mt-1 ref" value={ref} onChange={(e) => setRef(e.target.value)} />
+            <div className="flex items-center justify-between">
+              <label>Réf. {!refDirty && isNew && <span className="text-[10px] text-accent">· auto</span>}</label>
+              {isNew && refDirty && (
+                <button type="button" className="text-xs text-accent" onClick={regenerateRef}>
+                  Régénérer
+                </button>
+              )}
+            </div>
+            <input className="w-full mt-1 ref" value={ref} onChange={onRefChange} />
           </div>
           <div>
             <label>Zone</label>
