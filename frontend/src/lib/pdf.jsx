@@ -5,6 +5,7 @@
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
 import { supabase, PHOTOS_BUCKET } from './supabase.js';
 import { familleLabel } from './familles.js';
+import { hashSnapshot } from './hash.js';
 
 const styles = StyleSheet.create({
   page:      { padding: 32, fontFamily: 'Helvetica', fontSize: 10, color: '#0f1117' },
@@ -24,6 +25,12 @@ const styles = StyleSheet.create({
   k:         { width: 110, color: '#555' },
   v:         { flex: 1 },
   footer:    { position: 'absolute', bottom: 16, left: 32, right: 32, fontSize: 8, color: '#888', textAlign: 'center' },
+  certBlock: { marginTop: 24, paddingTop: 12, borderTop: '1 solid #ddd' },
+  sigGrid:   { flexDirection: 'row', gap: 24, marginTop: 8 },
+  sigBox:    { flex: 1 },
+  sigLabel:  { fontSize: 9, color: '#555', marginBottom: 4 },
+  sigImg:    { width: 220, height: 80, objectFit: 'contain' },
+  hashLine:  { fontFamily: 'Courier', fontSize: 8, color: '#444', marginTop: 6 },
 });
 
 const BADGE_COLORS = {
@@ -76,7 +83,7 @@ function specLines(famille, specs = {}) {
   return items;
 }
 
-function Report({ site, equipements, famille, niveau, org, generatedAt }) {
+function Report({ site, equipements, famille, niveau, org, generatedAt, signature, signedBy, hash }) {
   const title = 'Rapport d\'audit — équipements';
   const scope = [
     famille ? familleLabel(famille) : 'Toutes familles',
@@ -143,6 +150,40 @@ function Report({ site, equipements, famille, niveau, org, generatedAt }) {
           </View>
         ))}
 
+        <View style={styles.certBlock} wrap={false}>
+          <Text style={{ fontSize: 11, fontWeight: 700 }}>Certification & signatures</Text>
+          <View style={styles.sigGrid}>
+            <View style={styles.sigBox}>
+              <Text style={styles.sigLabel}>Technicien — {org ?? 'IEF & CO'}</Text>
+              <View style={{ borderBottom: '1 solid #bbb', height: 40 }} />
+              <Text style={{ fontSize: 8, color: '#888', marginTop: 2 }}>Nom, date, signature</Text>
+            </View>
+            <View style={styles.sigBox}>
+              <Text style={styles.sigLabel}>Client / maître d'ouvrage</Text>
+              {signature ? (
+                <>
+                  <Image src={signature} style={styles.sigImg} />
+                  <Text style={{ fontSize: 8, color: '#333' }}>{signedBy ?? ''} · {generatedAt}</Text>
+                </>
+              ) : (
+                <>
+                  <View style={{ borderBottom: '1 solid #bbb', height: 40 }} />
+                  <Text style={{ fontSize: 8, color: '#888', marginTop: 2 }}>Non signé</Text>
+                </>
+              )}
+            </View>
+          </View>
+          {hash && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ fontSize: 8, color: '#666' }}>
+                Empreinte d'intégrité (SHA-256) du contenu du rapport. Toute altération postérieure du contenu
+                produira un hash différent.
+              </Text>
+              <Text style={styles.hashLine}>{hash}</Text>
+            </View>
+          )}
+        </View>
+
         <Text
           style={styles.footer}
           render={({ pageNumber, totalPages }) => `${site.name} · page ${pageNumber} / ${totalPages}`}
@@ -153,11 +194,22 @@ function Report({ site, equipements, famille, niveau, org, generatedAt }) {
   );
 }
 
-export async function buildAndDownloadReport({ site, equipements, famille, niveau, org }) {
+export async function buildAndDownloadReport({
+  site, equipements, famille, niveau, org,
+  signature = null, signedBy = null,
+}) {
   const enriched = await enrichPhotos(equipements);
   const generatedAt = new Date().toLocaleString('fr-FR');
+  const { hash, snapshot } = await hashSnapshot({ site, equipements, famille, niveau, generatedAt });
+
   const blob = await pdf(
-    <Report site={site} equipements={enriched} famille={famille} niveau={niveau} org={org} generatedAt={generatedAt} />
+    <Report
+      site={site} equipements={enriched}
+      famille={famille} niveau={niveau}
+      org={org} generatedAt={generatedAt}
+      signature={signature} signedBy={signedBy}
+      hash={hash}
+    />
   ).toBlob();
 
   const url = URL.createObjectURL(blob);
@@ -175,4 +227,16 @@ export async function buildAndDownloadReport({ site, equipements, famille, nivea
     famille: famille ?? null,
     niveau:  niveau  ?? null,
   });
+
+  // Snapshot versionné pour le diff temporel / historique.
+  await supabase.from('audit_snapshots').insert({
+    site_id: site.id,
+    data: snapshot,
+    hash_sha256: hash,
+    famille_scope: famille ?? null,
+    niveau_scope:  niveau  ?? null,
+    signed_by: signedBy ?? null,
+  });
+
+  return { hash };
 }

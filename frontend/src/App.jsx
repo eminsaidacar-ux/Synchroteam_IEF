@@ -9,6 +9,7 @@ import Rapports from './pages/Rapports.jsx';
 import ImportLegacy from './pages/ImportLegacy.jsx';
 import QrSheet from './pages/QrSheet.jsx';
 import Devis from './pages/Devis.jsx';
+import Historique from './pages/Historique.jsx';
 
 // DEV: auth bypass le temps du test UI local. Remettre <Protected> autour
 // de <AppLayout /> quand Supabase sera configure.
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="sites/:siteId/audit/:equipId" element={<AuditSession />} />
         <Route path="rapports" element={<Rapports />} />
         <Route path="devis" element={<Devis />} />
+        <Route path="historique" element={<Historique />} />
         <Route path="import" element={<ImportLegacy />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

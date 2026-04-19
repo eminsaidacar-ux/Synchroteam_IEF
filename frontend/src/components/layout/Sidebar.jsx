@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Building2, FileText, Upload, Calculator } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Upload, Calculator, Clock } from 'lucide-react';
 
 const items = [
-  { to: '/',         label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/sites',    label: 'Sites',     icon: Building2 },
-  { to: '/rapports', label: 'Rapports',  icon: FileText },
-  { to: '/devis',    label: 'Pré-devis', icon: Calculator },
-  { to: '/import',   label: 'Import',    icon: Upload },
+  { to: '/',           label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/sites',      label: 'Sites',     icon: Building2 },
+  { to: '/rapports',   label: 'Rapports',  icon: FileText },
+  { to: '/devis',      label: 'Pré-devis', icon: Calculator },
+  { to: '/historique', label: 'Historique', icon: Clock },
+  { to: '/import',     label: 'Import',    icon: Upload },
 ];
 
 export default function Sidebar() {

@@ -4,6 +4,7 @@ import { FileDown } from 'lucide-react';
 import { useSites } from '../hooks/useSites.js';
 import { useEquipements } from '../hooks/useEquipements.js';
 import ChipSelect from '../components/ui/ChipSelect.jsx';
+import SignaturePad from '../components/ui/SignaturePad.jsx';
 import { FAMILLES } from '../lib/familles.js';
 import { buildAndDownloadReport } from '../lib/pdf.jsx';
 import { useAuth } from '../lib/auth.jsx';
@@ -18,6 +19,9 @@ export default function Rapports() {
   const [niveau, setNiveau]   = useState(null);
   const [busy, setBusy]       = useState(false);
   const [error, setError]     = useState(null);
+  const [signature, setSignature] = useState(null);
+  const [signedBy, setSignedBy]   = useState('');
+  const [lastHash, setLastHash]   = useState(null);
 
   const site = sites.find((s) => s.id === siteId);
   const { data: equipements = [] } = useEquipements(siteId, { famille, niveau });
@@ -38,7 +42,12 @@ export default function Rapports() {
     if (!site) return;
     setBusy(true); setError(null);
     try {
-      await buildAndDownloadReport({ site, equipements, famille, niveau, org: profile?.organisations?.name });
+      const { hash } = await buildAndDownloadReport({
+        site, equipements, famille, niveau,
+        org: profile?.organisations?.name,
+        signature, signedBy: signedBy || null,
+      });
+      setLastHash(hash);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -68,7 +77,39 @@ export default function Rapports() {
           disabled={!siteId || busy || equipements.length === 0}>
           <FileDown size={16} /> {busy ? 'Génération…' : 'Générer le PDF'}
         </button>
+        {lastHash && (
+          <div className="text-xs text-muted border-t border-border pt-3 space-y-1">
+            <div className="text-good">✓ Rapport généré</div>
+            <div>Empreinte SHA-256 :</div>
+            <div className="ref break-all text-[11px]">{lastHash}</div>
+          </div>
+        )}
       </div>
+
+      {siteId && equipements.length > 0 && (
+        <div className="card p-4 space-y-3">
+          <h2 className="font-semibold">Signature client (optionnel)</h2>
+          <p className="text-sm text-muted">
+            Faire signer le maître d'ouvrage avant génération : la signature est
+            intégrée au PDF et le contenu est hashé en SHA-256 (valeur probante).
+          </p>
+          <div>
+            <label>Nom du signataire</label>
+            <input className="w-full mt-1" value={signedBy}
+              onChange={(e) => setSignedBy(e.target.value)} placeholder="Nom Prénom, qualité" />
+          </div>
+          {signature ? (
+            <div className="space-y-2">
+              <div className="rounded-lg border border-border overflow-hidden bg-white">
+                <img src={signature} alt="signature" className="block w-full" />
+              </div>
+              <button className="btn btn-ghost" onClick={() => setSignature(null)}>Refaire la signature</button>
+            </div>
+          ) : (
+            <SignaturePad onSign={setSignature} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
