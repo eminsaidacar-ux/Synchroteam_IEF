@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { useAuth } from './lib/auth.jsx';
 import AppLayout from './components/layout/AppLayout.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -9,33 +8,13 @@ import AuditSession from './pages/AuditSession.jsx';
 import Rapports from './pages/Rapports.jsx';
 import ImportLegacy from './pages/ImportLegacy.jsx';
 
-function Protected({ children }) {
-  const { session, loading } = useAuth();
-  if (loading) return <FullscreenSpinner />;
-  if (!session) return <Navigate to="/login" replace />;
-  return children;
-}
-
-function FullscreenSpinner() {
-  return (
-    <div className="h-full grid place-items-center">
-      <div className="animate-pulse text-muted">Chargement…</div>
-    </div>
-  );
-}
-
+// DEV: auth bypass le temps du test UI local. Remettre <Protected> autour
+// de <AppLayout /> quand Supabase sera configure.
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route
-        path="/"
-        element={
-          <Protected>
-            <AppLayout />
-          </Protected>
-        }
-      >
+      <Route path="/" element={<AppLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="sites" element={<Sites />} />
         <Route path="sites/:siteId" element={<SiteDetail />} />
