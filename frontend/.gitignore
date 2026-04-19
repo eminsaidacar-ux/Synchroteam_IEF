@@ -6,3 +6,7 @@ dist/
 .vite
 .vercel
 *.log
+playwright-report/
+test-results/
+/blob-report/
+dev-dist/
