@@ -38,6 +38,8 @@ export function useUpsertSite() {
         address: payload.address ?? null,
         ref_affaire: payload.ref_affaire ?? null,
         niveaux: payload.niveaux ?? DEFAULT_NIVEAUX,
+        lat: typeof payload.lat === 'number' ? payload.lat : null,
+        lng: typeof payload.lng === 'number' ? payload.lng : null,
       };
       if (payload.id) {
         const { data, error } = await supabase.from('sites').update(row).eq('id', payload.id).select().single();

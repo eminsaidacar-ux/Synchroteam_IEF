@@ -65,15 +65,26 @@ function SiteRow({ site }) {
   );
 }
 
+const DEFAULT_NIVEAUX = ['SS', 'RDC', 'R+1', 'R+2', 'R+3', 'Terrasse'];
+
 function SiteForm({ organisation_id, onDone }) {
   const upsert = useUpsertSite();
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [refAffaire, setRefAffaire] = useState('');
+  const [niveauxStr, setNiveauxStr] = useState(DEFAULT_NIVEAUX.join(', '));
+  const [lat, setLat] = useState('');
+  const [lng, setLng] = useState('');
 
   async function submit(e) {
     e.preventDefault();
-    await upsert.mutateAsync({ name, address, ref_affaire: refAffaire, organisation_id });
+    const niveaux = niveauxStr.split(',').map((s) => s.trim()).filter(Boolean);
+    await upsert.mutateAsync({
+      name, address, ref_affaire: refAffaire, organisation_id,
+      niveaux: niveaux.length ? niveaux : DEFAULT_NIVEAUX,
+      lat: lat === '' ? null : Number(lat),
+      lng: lng === '' ? null : Number(lng),
+    });
     onDone?.();
   }
 
@@ -90,6 +101,25 @@ function SiteForm({ organisation_id, onDone }) {
       <div>
         <label>Adresse</label>
         <input className="w-full mt-1" value={address} onChange={(e) => setAddress(e.target.value)} />
+      </div>
+      <div className="md:col-span-3">
+        <label>Niveaux du site <span className="text-xs text-muted">(séparés par virgules)</span></label>
+        <input className="w-full mt-1 ref text-sm" value={niveauxStr}
+          onChange={(e) => setNiveauxStr(e.target.value)}
+          placeholder="SS, RDC, R+1, Terrasse…" />
+      </div>
+      <div>
+        <label>Latitude <span className="text-xs text-muted">(optionnel)</span></label>
+        <input type="number" step="any" className="w-full mt-1 ref text-sm"
+          value={lat} onChange={(e) => setLat(e.target.value)} placeholder="48.8337" />
+      </div>
+      <div>
+        <label>Longitude</label>
+        <input type="number" step="any" className="w-full mt-1 ref text-sm"
+          value={lng} onChange={(e) => setLng(e.target.value)} placeholder="2.2417" />
+      </div>
+      <div className="flex items-end">
+        <span className="text-xs text-muted">Pour affichage dans la carte.</span>
       </div>
       <div className="md:col-span-3 flex justify-end gap-2">
         <button type="button" className="btn btn-ghost" onClick={onDone}>Annuler</button>

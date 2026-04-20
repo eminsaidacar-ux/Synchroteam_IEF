@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
 import { AuthProvider } from './lib/auth.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './index.css';
 
 // Service worker PWA : auto-update en arrière-plan + rechargement sur
@@ -21,12 +22,14 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

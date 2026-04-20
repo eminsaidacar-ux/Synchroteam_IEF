@@ -40,6 +40,21 @@ export function useUpsertEquipement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
+      // Update partiel : ne patche que les clés explicitement fournies,
+      // pour permettre les bulk actions (juste { id, site_id, etat }).
+      if (payload.id) {
+        const patch = {};
+        for (const k of ['famille', 'ref', 'niveau', 'zone', 'emplacement',
+                         'specs', 'accessoires', 'etat', 'priorite',
+                         'actions', 'observations']) {
+          if (k in payload) patch[k] = payload[k];
+        }
+        const { data, error } = await supabase.from('equipements')
+          .update(patch).eq('id', payload.id).select().single();
+        if (error) throw error;
+        return data;
+      }
+      // Insert : tous les champs avec defaults.
       const row = {
         site_id: payload.site_id,
         famille: payload.famille,
@@ -54,11 +69,6 @@ export function useUpsertEquipement() {
         actions: payload.actions ?? [],
         observations: payload.observations ?? null,
       };
-      if (payload.id) {
-        const { data, error } = await supabase.from('equipements').update(row).eq('id', payload.id).select().single();
-        if (error) throw error;
-        return data;
-      }
       const { data, error } = await supabase.from('equipements').insert(row).select().single();
       if (error) throw error;
       return data;

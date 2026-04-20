@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Plus, FileText, QrCode } from 'lucide-react';
+import { Plus, FileText, QrCode, CheckSquare, Square, Trash2, X } from 'lucide-react';
 import { useSite } from '../hooks/useSites.js';
-import { useEquipements } from '../hooks/useEquipements.js';
+import { useEquipements, useUpsertEquipement, useDeleteEquipement } from '../hooks/useEquipements.js';
 import EquipementCard from '../components/equipements/EquipementCard.jsx';
 import ChipSelect from '../components/ui/ChipSelect.jsx';
-import { FAMILLES } from '../lib/familles.js';
+import { EtatBadge, PrioriteBadge } from '../components/ui/Badge.jsx';
+import { FAMILLES, ETATS, PRIORITES, familleIcon, familleLabel } from '../lib/familles.js';
 
 export default function SiteDetail() {
   const { siteId } = useParams();
@@ -14,6 +15,7 @@ export default function SiteDetail() {
   const [famille, setFamille] = useState(null);
   const [niveau, setNiveau]   = useState(null);
   const { data: equipements = [] } = useEquipements(siteId, { famille, niveau });
+  const [selected, setSelected] = useState(() => new Set());
 
   const familleOptions = useMemo(
     () => [{ value: null, label: 'Toutes' }, ...FAMILLES.map((f) => ({ value: f.key, label: `${f.icon} ${f.label}` }))],
@@ -23,6 +25,16 @@ export default function SiteDetail() {
     () => [{ value: null, label: 'Tous' }, ...(site?.niveaux ?? []).map((n) => ({ value: n, label: n }))],
     [site]
   );
+
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const selectAll = () => setSelected(new Set(equipements.map((e) => e.id)));
+  const clearSelection = () => setSelected(new Set());
 
   if (isLoading) return <p className="text-muted">Chargement…</p>;
   if (!site)     return <p className="text-muted">Site introuvable.</p>;
@@ -55,13 +67,104 @@ export default function SiteDetail() {
         <ChipSelect label="Niveau"  value={niveau}  options={niveauOptions}  onChange={setNiveau} />
       </div>
 
+      {equipements.length > 0 && (
+        <div className="flex items-center gap-2 text-sm">
+          <button className="btn btn-ghost" onClick={selected.size === equipements.length ? clearSelection : selectAll}>
+            {selected.size === equipements.length ? <CheckSquare size={14} /> : <Square size={14} />}
+            {selected.size === 0 ? 'Tout sélectionner' : `${selected.size} sélectionné(s)`}
+          </button>
+        </div>
+      )}
+
+      {selected.size > 0 && (
+        <BulkToolbar
+          siteId={siteId}
+          selectedIds={[...selected]}
+          onDone={clearSelection}
+        />
+      )}
+
       {equipements.length === 0 ? (
         <div className="card p-8 text-center text-muted">Aucun équipement sur ces filtres.</div>
       ) : (
         <ul className="space-y-2">
-          {equipements.map((e) => <EquipementCard key={e.id} equipement={e} siteId={siteId} />)}
+          {equipements.map((e) => (
+            <div key={e.id} className="flex items-start gap-2">
+              <button
+                onClick={() => toggleSelect(e.id)}
+                className="mt-3 shrink-0"
+                aria-label={selected.has(e.id) ? 'Désélectionner' : 'Sélectionner'}
+              >
+                {selected.has(e.id)
+                  ? <CheckSquare size={18} className="text-accent" />
+                  : <Square size={18} className="text-muted" />}
+              </button>
+              <div className="flex-1 min-w-0">
+                <EquipementCard equipement={e} siteId={siteId} />
+              </div>
+            </div>
+          ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function BulkToolbar({ siteId, selectedIds, onDone }) {
+  const upsert = useUpsertEquipement();
+  const del    = useDeleteEquipement();
+  const [busy, setBusy] = useState(false);
+
+  const apply = async (patch) => {
+    setBusy(true);
+    try {
+      for (const id of selectedIds) {
+        await upsert.mutateAsync({ id, site_id: siteId, ...patch });
+      }
+      onDone();
+    } finally { setBusy(false); }
+  };
+
+  const removeSelected = async () => {
+    if (!confirm(`Supprimer ${selectedIds.length} équipement(s) ?`)) return;
+    setBusy(true);
+    try {
+      for (const id of selectedIds) {
+        await del.mutateAsync({ id, site_id: siteId });
+      }
+      onDone();
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="card p-3 border border-accent/40 bg-accent/5 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-medium">Actions groupées sur {selectedIds.length} équipement(s)</div>
+        <button className="btn btn-ghost" onClick={onDone}><X size={14} /></button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1 items-center">
+          <span className="text-xs text-muted mr-1">État :</span>
+          {ETATS.map((e) => (
+            <button key={e} disabled={busy}
+              className="chip" onClick={() => apply({ etat: e })}>
+              <EtatBadge etat={e} />
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1 items-center">
+          <span className="text-xs text-muted mr-1">Priorité :</span>
+          {PRIORITES.map((p) => (
+            <button key={p} disabled={busy}
+              className="chip" onClick={() => apply({ priorite: p })}>
+              <PrioriteBadge priorite={p} />
+            </button>
+          ))}
+        </div>
+        <button className="btn btn-ghost text-bad ml-auto" onClick={removeSelected} disabled={busy}>
+          <Trash2 size={14} /> Supprimer
+        </button>
+      </div>
     </div>
   );
 }

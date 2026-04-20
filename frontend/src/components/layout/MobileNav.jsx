@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Building2, FileText, Upload } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, QrCode } from 'lucide-react';
 
 const items = [
   { to: '/',         label: 'Accueil',  icon: LayoutDashboard, end: true },
   { to: '/sites',    label: 'Sites',    icon: Building2 },
+  { to: '/scan',     label: 'Scanner',  icon: QrCode },
   { to: '/rapports', label: 'Rapports', icon: FileText },
-  { to: '/import',   label: 'Import',   icon: Upload },
 ];
 
 export default function MobileNav() {
