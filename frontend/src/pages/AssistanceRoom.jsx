@@ -149,7 +149,7 @@ export default function AssistanceRoom() {
             <div className="text-sm">
               <div className="text-muted text-xs mb-1">Lien d'invitation client</div>
               <div className="flex gap-2 items-center">
-                <code className="ref text-xs bg-bg-2 border border-border rounded-lg px-3 py-2 truncate flex-1">
+                <code className="ref text-xs bg-panel border border-border rounded-lg px-3 py-2 truncate flex-1">
                   {joinUrl}
                 </code>
                 <button className="btn btn-sm" onClick={copyLink}>

@@ -34,7 +34,7 @@ export default function Header() {
           </Link>
 
           <button
-            className="flex-1 max-w-xl flex items-center gap-2 h-7 px-3 rounded-lg bg-white/[0.04] border border-white/[0.06] text-muted hover:border-white/[0.12] hover:text-text-2 transition group"
+            className="flex-1 max-w-xl flex items-center gap-2 h-7 px-3 rounded-lg bg-white/[0.04] border border-white/[0.06] text-muted hover:border-white/[0.12] hover:text-text2 transition group"
             onClick={() => setSearchOpen(true)}
             title="Recherche (Ctrl+K)"
           >

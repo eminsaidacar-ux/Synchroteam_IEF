@@ -40,7 +40,7 @@ export default function TeleAssistance() {
       </div>
 
       <div className="card p-4 space-y-2 text-sm">
-        <div className="flex items-center gap-2 text-text-2">
+        <div className="flex items-center gap-2 text-text2">
           <Info size={14} className="text-info" />
           <span className="font-medium">Comment ça marche</span>
         </div>

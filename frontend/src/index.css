@@ -17,7 +17,7 @@
   ::selection { background: rgba(255,107,0,0.35); color: #fff; }
 
   input, select, textarea {
-    @apply bg-bg-2 border border-border rounded-xl px-3 py-2 text-text outline-none;
+    @apply bg-panel border border-border rounded-xl px-3 py-2 text-text outline-none;
     @apply transition-colors duration-150 ease-spring;
     @apply placeholder:text-subtle;
     font-size: 14px;
@@ -61,7 +61,7 @@
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 font-medium;
     @apply text-sm text-text bg-surface border border-border;
     @apply transition-all duration-150 ease-spring;
-    @apply hover:bg-surface-2 hover:border-border-strong;
+    @apply hover:bg-raised hover:border-strong;
     @apply active:scale-[0.98];
   }
   .btn-primary {
@@ -86,7 +86,7 @@
     @apply transition-all duration-200 ease-spring;
   }
   .card-hover {
-    @apply hover:border-border-strong hover:shadow-card-hi hover:-translate-y-px;
+    @apply hover:border-strong hover:shadow-card-hi hover:-translate-y-px;
   }
   .card-glass {
     background: rgba(24, 27, 35, 0.72);
@@ -96,9 +96,9 @@
   /* Chips / badges ----------------------------------------------------- */
   .chip {
     @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm;
-    @apply border border-border bg-bg-2 text-text-2 cursor-pointer select-none;
+    @apply border border-border bg-panel text-text2 cursor-pointer select-none;
     @apply transition-all duration-100 ease-spring;
-    @apply hover:border-border-strong hover:text-text;
+    @apply hover:border-strong hover:text-text;
     @apply active:scale-[0.97];
   }
   .chip-active {
@@ -133,7 +133,7 @@
   /* kbd --------------------------------------------------------------- */
   kbd {
     @apply inline-flex items-center px-1.5 py-[1px] rounded-md;
-    @apply bg-bg-2 border border-border text-text-2 font-mono text-[10px];
+    @apply bg-panel border border-border text-text2 font-mono text-[10px];
     box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 1px 0 rgba(0,0,0,0.4);
   }
 

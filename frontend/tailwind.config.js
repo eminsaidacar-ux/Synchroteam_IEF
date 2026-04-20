@@ -5,20 +5,23 @@ export default {
     extend: {
       colors: {
         // Palette macOS-like : plus cool, plus neutre, elevation bien définie.
+        // Note : les noms de couleurs évitent de démarrer par la même
+        // racine qu'un préfixe utilitaire pour éviter les collisions
+        // @apply (ex: bg-bg-2 est ambigu → on utilise "panel").
         bg:          '#0a0c10', // fond app (base)
-        'bg-2':      '#12151c', // fond zones secondaires
+        panel:       '#12151c', // fond zones secondaires
         surface:     '#181b23', // cartes niveau 1
-        'surface-2': '#1f232d', // cartes niveau 2 (hover/actif)
-        'surface-3': '#262b37', // modals, popovers
+        raised:      '#1f232d', // cartes niveau 2 (hover/actif)
+        floating:    '#262b37', // modals, popovers
         border:      '#262b37',
-        'border-strong': '#343a4c',
+        strong:      '#343a4c', // border renforcée
 
         accent:      '#ff6b00',
         'accent-soft': '#ff8a38',
         'accent-dim':  '#b34a00',
 
         text:        '#ecedf0',
-        'text-2':    '#b9bdc8',
+        text2:       '#b9bdc8',
         muted:       '#7c8293',
         subtle:      '#565b6a',
 

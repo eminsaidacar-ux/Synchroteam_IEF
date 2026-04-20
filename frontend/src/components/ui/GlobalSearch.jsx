@@ -123,7 +123,7 @@ export default function GlobalSearch({ open, onClose }) {
                       onClick={() => goTo(item)}
                       className={[
                         'w-full flex items-center gap-3 px-4 py-2 text-left transition-colors',
-                        active ? 'bg-accent/12 text-text' : 'text-text-2 hover:bg-white/[0.03]',
+                        active ? 'bg-accent/10 text-text' : 'text-text2 hover:bg-white/[0.03]',
                       ].join(' ')}
                     >
                       <Row item={item} />
