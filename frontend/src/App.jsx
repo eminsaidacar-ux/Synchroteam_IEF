@@ -17,7 +17,10 @@ const Devis        = lazy(() => import('./pages/Devis.jsx'));
 const Historique   = lazy(() => import('./pages/Historique.jsx'));
 const ScanQr       = lazy(() => import('./pages/ScanQr.jsx'));
 const Parametres   = lazy(() => import('./pages/Parametres.jsx'));
-const Carte        = lazy(() => import('./pages/Carte.jsx'));
+const Carte           = lazy(() => import('./pages/Carte.jsx'));
+const TeleAssistance  = lazy(() => import('./pages/TeleAssistance.jsx'));
+const AssistanceRoom  = lazy(() => import('./pages/AssistanceRoom.jsx'));
+const JoinRoom        = lazy(() => import('./pages/JoinRoom.jsx'));
 
 function Fallback() {
   return (
@@ -34,6 +37,10 @@ export default function App() {
         {/* En mode local, /login redirige vers l'app (pas de flow d'auth). */}
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/sites/:siteId/qr-sheet" element={<QrSheet />} />
+        <Route path="/join/:roomId" element={<JoinRoom />} />
+        <Route path="/assistance/r/:roomId" element={<AppLayout />}>
+          <Route index element={<AssistanceRoom />} />
+        </Route>
         <Route path="/" element={<AppLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="sites" element={<Sites />} />
@@ -45,6 +52,7 @@ export default function App() {
           <Route path="historique" element={<Historique />} />
           <Route path="scan" element={<ScanQr />} />
           <Route path="carte" element={<Carte />} />
+          <Route path="assistance" element={<TeleAssistance />} />
           <Route path="parametres" element={<Parametres />} />
           <Route path="import" element={<ImportLegacy />} />
         </Route>

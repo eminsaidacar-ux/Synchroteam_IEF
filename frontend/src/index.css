@@ -5,45 +5,151 @@
 @layer base {
   html, body, #root { height: 100%; }
   body {
-    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-    background-color: #0f1117;
-    color: #e6e9ef;
+    font-family: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    background-color: #0a0c10;
+    color: #ecedf0;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02','cv03','cv04','cv11','ss01';
+    font-variant-ligatures: contextual;
+    text-rendering: optimizeLegibility;
   }
+  ::selection { background: rgba(255,107,0,0.35); color: #fff; }
+
   input, select, textarea {
-    @apply bg-card border border-border rounded-lg px-3 py-2 text-text outline-none;
-    @apply focus:border-accent focus:ring-1 focus:ring-accent;
+    @apply bg-bg-2 border border-border rounded-xl px-3 py-2 text-text outline-none;
+    @apply transition-colors duration-150 ease-spring;
+    @apply placeholder:text-subtle;
+    font-size: 14px;
   }
-  label { @apply text-sm text-muted; }
+  input:focus, select:focus, textarea:focus {
+    @apply border-accent/70;
+    box-shadow: 0 0 0 3px rgba(255,107,0,0.18);
+  }
+  label {
+    @apply text-xs text-muted font-medium tracking-wide;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Scrollbars refinées style macOS */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.08);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); background-clip: padding-box; border: 2px solid transparent; }
+
+  h1 { @apply text-3xl font-semibold tracking-tight; }
+  h2 { @apply text-xl  font-semibold tracking-tight; }
+  h3 { @apply text-lg  font-semibold; }
+
+  /* Focus visible accessible */
+  *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255,107,0,0.3);
+    border-radius: 8px;
+  }
 }
 
 @layer components {
+  /* Buttons ------------------------------------------------------------ */
   .btn {
-    @apply inline-flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition;
-    @apply border border-border bg-card hover:border-accent/60;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 font-medium;
+    @apply text-sm text-text bg-surface border border-border;
+    @apply transition-all duration-150 ease-spring;
+    @apply hover:bg-surface-2 hover:border-border-strong;
+    @apply active:scale-[0.98];
   }
   .btn-primary {
-    @apply bg-accent text-black border-accent hover:bg-accent/90;
+    @apply text-white border-accent/70;
+    background: linear-gradient(180deg, #ff7a1a, #ff6b00);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 10px rgba(255,107,0,0.2);
   }
-  .btn-ghost { @apply bg-transparent border-transparent hover:border-border; }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-ghost {
+    @apply bg-transparent border-transparent;
+    @apply hover:bg-white/5 hover:border-transparent;
+  }
+  .btn-sm { @apply px-2.5 py-1 text-xs rounded-lg; }
+  .btn-lg { @apply px-5 py-3 text-base rounded-2xl; }
+  .btn-danger {
+    @apply text-bad border-bad/30 hover:bg-bad/10 hover:border-bad/50;
+  }
 
+  /* Cards -------------------------------------------------------------- */
   .card {
-    @apply bg-card border border-border rounded-2xl shadow-card;
+    @apply bg-surface border border-border rounded-2xl shadow-card;
+    @apply transition-all duration-200 ease-spring;
+  }
+  .card-hover {
+    @apply hover:border-border-strong hover:shadow-card-hi hover:-translate-y-px;
+  }
+  .card-glass {
+    background: rgba(24, 27, 35, 0.72);
+    @apply backdrop-blur-md border border-border rounded-2xl shadow-card;
   }
 
+  /* Chips / badges ----------------------------------------------------- */
   .chip {
-    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm;
-    @apply border border-border bg-bg text-muted cursor-pointer select-none;
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm;
+    @apply border border-border bg-bg-2 text-text-2 cursor-pointer select-none;
+    @apply transition-all duration-100 ease-spring;
+    @apply hover:border-border-strong hover:text-text;
+    @apply active:scale-[0.97];
   }
-  .chip-active { @apply bg-accent text-black border-accent; }
+  .chip-active {
+    @apply bg-accent text-white border-accent;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 10px rgba(255,107,0,0.2);
+  }
 
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium;
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
-  .badge-good { @apply bg-good/15 text-good border border-good/30; }
-  .badge-warn { @apply bg-warn/15 text-warn border border-warn/30; }
-  .badge-bad  { @apply bg-bad/15  text-bad  border border-bad/30; }
-  .badge-ko   { @apply bg-ko/15   text-ko   border border-ko/30; }
+  .badge-good { @apply bg-good/10  text-good border border-good/25; }
+  .badge-warn { @apply bg-warn/10  text-warn border border-warn/25; }
+  .badge-bad  { @apply bg-bad/10   text-bad  border border-bad/25; }
+  .badge-ko   { @apply bg-ko/10    text-ko   border border-ko/25; }
+  .badge-info { @apply bg-info/10  text-info border border-info/25; }
 
-  .ref { font-family: 'DM Mono', ui-monospace, monospace; }
+  /* Ref / mono --------------------------------------------------------- */
+  .ref {
+    font-family: 'DM Mono', ui-monospace, Menlo, monospace;
+    font-feature-settings: 'tnum','zero';
+  }
+
+  /* Input primitive plus raffiné pour "command-k" */
+  .input-cmd {
+    @apply bg-transparent border-0 w-full p-0 text-base;
+    box-shadow: none !important;
+  }
+  .input-cmd:focus { box-shadow: none; }
+
+  /* kbd --------------------------------------------------------------- */
+  kbd {
+    @apply inline-flex items-center px-1.5 py-[1px] rounded-md;
+    @apply bg-bg-2 border border-border text-text-2 font-mono text-[10px];
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 1px 0 rgba(0,0,0,0.4);
+  }
+
+  /* Skeletons --------------------------------------------------------- */
+  .skeleton {
+    background: linear-gradient(90deg,
+      rgba(255,255,255,0.04) 0%,
+      rgba(255,255,255,0.08) 50%,
+      rgba(255,255,255,0.04) 100%);
+    background-size: 200% 100%;
+    @apply animate-shimmer rounded-lg;
+  }
+
+  /* Divider ----------------------------------------------------------- */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  }
 }
