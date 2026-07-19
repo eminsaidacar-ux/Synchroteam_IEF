@@ -11,6 +11,13 @@ import { useUploadPhoto } from '../../hooks/usePhotos.js';
 import { useAuth } from '../../lib/auth.jsx';
 import { buildRef } from '../../lib/refBuilder.js';
 
+// Phase de prise de vue : liaison avant/après travaux (photos.phase).
+const PHASES = [
+  { value: null,    label: 'Sans phase' },
+  { value: 'avant', label: 'Avant travaux' },
+  { value: 'apres', label: 'Après travaux' },
+];
+
 const DEFAULT_ACTIONS = [
   'Remplacement joint CF',
   'Remplacement ferme-porte',
@@ -37,6 +44,7 @@ export default function EquipementForm({ site, equipement, onSaved }) {
   const [priorite, setPriorite]         = useState(equipement?.priorite ?? null);
   const [actions, setActions]           = useState(equipement?.actions ?? []);
   const [observations, setObservations] = useState(equipement?.observations ?? '');
+  const [photoPhase, setPhotoPhase]     = useState(null);
   const [saving, setSaving]             = useState(false);
   const [error, setError]               = useState(null);
 
@@ -90,6 +98,7 @@ export default function EquipementForm({ site, equipement, onSaved }) {
         equipement: target,
         site,
         organisation_id: profile?.organisation_id,
+        phase: photoPhase,
       });
     }
   }
@@ -164,6 +173,8 @@ export default function EquipementForm({ site, equipement, onSaved }) {
           <p className="text-sm text-muted">Enregistrez d'abord l'équipement pour ajouter des photos.</p>
         ) : (
           <>
+            <ChipSelect label="Phase des prochaines photos" value={photoPhase}
+              options={PHASES} onChange={setPhotoPhase} />
             <PhotoCapture onFiles={onPhotoFiles} disabled={upload.isPending} />
             <PhotoGrid photos={equipement?.photos ?? []} />
           </>

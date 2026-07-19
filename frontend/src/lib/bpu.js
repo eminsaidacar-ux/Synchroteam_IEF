@@ -1,39 +1,61 @@
-// BPU (Bordereau de Prix Unitaires) — mapping action → ligne de devis.
-// Prix indicatifs marché IDF mars 2026, à ajuster selon négo fournisseurs.
-//
-// TODO phase 2 : BPU personnalisable par organisation (Supabase table
-// bpu_items avec org_id), import Excel.
+// BPU (Bordereau de Prix Unitaires) — moteur de chiffrage PUR.
+// Les tarifs vivent en base (table bpu_tarifs, migration 0006) et sont
+// chargés par le hook useBpu (hooks/useBpu.js) avec cache local offline.
+// AUCUN prix n'est codé en dur ici : ce module ne fait que combiner les
+// équipements audités avec le référentiel tarifaire qu'on lui passe.
 
-export const BPU = {
-  'Remplacement joint CF':         { unite: 'ml',  prix_ht: 18, mo_heures: 0.5, categorie: 'Menuiserie' },
-  'Remplacement ferme-porte':      { unite: 'u',   prix_ht: 85, mo_heures: 1.0, categorie: 'Serrurerie' },
-  'Graissage serrure':             { unite: 'u',   prix_ht: 12, mo_heures: 0.25, categorie: 'Entretien' },
-  'Reprise peinture':              { unite: 'm²',  prix_ht: 35, mo_heures: 1.0, categorie: 'Finition' },
-  'Remplacement béquille':         { unite: 'u',   prix_ht: 45, mo_heures: 0.5, categorie: 'Quincaillerie' },
-  'Réglage fermeture':             { unite: 'u',   prix_ht: 20, mo_heures: 0.5, categorie: 'Entretien' },
-};
+// Codes des taux horaires main d'œuvre (lignes de bpu_tarifs).
+export const MO_UN_TECHNICIEN    = 'MO-1TECH';
+export const MO_DEUX_TECHNICIENS = 'MO-2TECH';
 
-// Taux horaire main d'œuvre technicien qualifié IDF.
-export const TAUX_HORAIRE_MO = 55;
-
-export function lineForAction(label) {
-  const item = BPU[label];
-  if (!item) return null;
-  const mo_cout = item.mo_heures * TAUX_HORAIRE_MO;
+// Réduit les lignes brutes de bpu_tarifs (versionnées par date_effet) au
+// tarif applicable : par code, la version active la plus récente dont
+// date_effet <= aujourd'hui. Retourne { parCode, parLibelle, tauxMo }.
+export function indexTarifs(rows = []) {
+  const today = new Date().toISOString().slice(0, 10);
+  const parCode = {};
+  for (const r of rows) {
+    if (r.actif === false) continue;
+    if (r.date_effet && String(r.date_effet) > today) continue;
+    const cur = parCode[r.code];
+    if (!cur || String(r.date_effet ?? '') > String(cur.date_effet ?? '')) parCode[r.code] = r;
+  }
+  const parLibelle = {};
+  for (const t of Object.values(parCode)) parLibelle[t.libelle] = t;
   return {
+    parCode,
+    parLibelle,
+    tauxMo: {
+      un_technicien:    parCode[MO_UN_TECHNICIEN]?.prix_ht ?? null,
+      deux_techniciens: parCode[MO_DEUX_TECHNICIENS]?.prix_ht ?? null,
+    },
+  };
+}
+
+// Ligne de devis pour une action recommandée (libellé), à partir du
+// référentiel indexé. Retourne null si l'action n'est pas au BPU.
+export function lineForAction(label, bpu) {
+  const item = bpu?.parLibelle?.[label];
+  const taux = bpu?.tauxMo?.un_technicien;
+  if (!item || taux == null) return null;
+  const prix_ht  = Number(item.prix_ht);
+  const mo_heures = Number(item.mo_heures ?? 0);
+  const mo_cout  = mo_heures * Number(taux);
+  return {
+    code: item.code,
     libelle: label,
     unite: item.unite,
-    prix_fourniture_ht: item.prix_ht,
-    mo_heures: item.mo_heures,
+    prix_fourniture_ht: prix_ht,
+    mo_heures,
     mo_cout,
-    prix_total_ht: item.prix_ht + mo_cout,
-    categorie: item.categorie,
+    prix_total_ht: prix_ht + mo_cout,
+    categorie: item.famille,
   };
 }
 
 // Agrège les actions de tous les équipements d'un site.
-// Retourne : { lignes: [{ libelle, qte, unite, prix_unitaire, total }], total_ht }
-export function buildDevis(equipements) {
+// Retourne : { lignes: [{ libelle, qte, unite, prix_unitaire_ht, total_ht }], total_ht }
+export function buildDevis(equipements, bpu) {
   const counts = {};
   for (const e of equipements) {
     for (const action of e.actions ?? []) {
@@ -43,7 +65,7 @@ export function buildDevis(equipements) {
   const lignes = [];
   let total_ht = 0;
   for (const [label, qte] of Object.entries(counts)) {
-    const base = lineForAction(label);
+    const base = lineForAction(label, bpu);
     if (!base) {
       lignes.push({
         libelle: label, qte, unite: 'u',

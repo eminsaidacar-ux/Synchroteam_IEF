@@ -1,18 +1,22 @@
 import { useMemo, useState } from 'react';
 import { useSites } from '../hooks/useSites.js';
 import { useEquipements } from '../hooks/useEquipements.js';
+import { useBpu } from '../hooks/useBpu.js';
 import { buildDevis, euros } from '../lib/bpu.js';
 import { Download } from 'lucide-react';
 
 // Page Pré-devis : sélection d'un site → agrégation des actions recommandées
 // sur tous ses équipements → tableau chiffré avec total HT et export CSV.
+// Les tarifs proviennent de la base (bpu_tarifs, versionnée) via useBpu,
+// avec cache local en cas de coupure réseau.
 export default function Devis() {
   const { data: sites = [] } = useSites();
   const [siteId, setSiteId] = useState(null);
   const { data: equipements = [] } = useEquipements(siteId);
+  const { bpu } = useBpu();
   const site = sites.find((s) => s.id === siteId);
 
-  const devis = useMemo(() => buildDevis(equipements), [equipements]);
+  const devis = useMemo(() => buildDevis(equipements, bpu), [equipements, bpu]);
 
   const downloadCsv = () => {
     const header = 'Catégorie;Libellé;Qté;Unité;Prix unit. HT;Total HT';
@@ -33,8 +37,24 @@ export default function Devis() {
       <h1 className="text-xl font-semibold">Pré-devis</h1>
       <p className="text-sm text-muted">
         Chiffrage automatique à partir des actions recommandées saisies par le technicien.
-        Les prix proviennent du BPU (<span className="ref">lib/bpu.js</span>) ; à éditer selon négo.
+        Tarifs BPU chargés depuis la base (<span className="ref">bpu_tarifs</span>, versionnée)
+        {bpu?.tauxMo?.un_technicien != null && (
+          <> — MO {euros(bpu.tauxMo.un_technicien)}/h (1 tech.) · {euros(bpu.tauxMo.deux_techniciens)}/h (2 tech.)</>
+        )}.
       </p>
+
+      {bpu?.source === 'cache' && (
+        <p className="text-xs text-accent">
+          Hors ligne : tarifs issus du dernier cache local
+          {bpu.fetched_at && <> ({new Date(bpu.fetched_at).toLocaleString('fr-FR')})</>}.
+        </p>
+      )}
+      {bpu?.source === 'vide' && (
+        <p className="text-xs text-bad">
+          Tarifs BPU indisponibles (aucune donnée en base ni en cache) — les lignes
+          apparaîtront « Non chiffré ».
+        </p>
+      )}
 
       <div className="card p-4 space-y-3">
         <div>

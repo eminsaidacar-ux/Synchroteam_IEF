@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { LogOut, Search } from 'lucide-react';
 import { useAuth } from '../../lib/auth.jsx';
 import GlobalSearch from '../ui/GlobalSearch.jsx';
+import SyncBadge from '../ui/SyncBadge.jsx';
 
 // Header minimal Apple-like : glassmorphism, commande de recherche
 // centrale prédominante, identité discrète.
@@ -44,6 +45,7 @@ export default function Header() {
           </button>
 
           <div className="flex items-center gap-2 shrink-0">
+            <SyncBadge />
             {profile && (
               <div className="hidden lg:flex flex-col text-right">
                 <span className="text-xs text-text leading-none">{profile.email}</span>
