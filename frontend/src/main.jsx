@@ -7,6 +7,7 @@ import App from './App.jsx';
 import { AuthProvider } from './lib/auth.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { ToastProvider } from './components/ui/Toast.jsx';
+import { initOutbox } from './lib/outbox.js';
 import './index.css';
 
 // Service worker PWA : auto-update en arrière-plan + rechargement sur
@@ -16,6 +17,9 @@ registerSW({
     if (confirm('Nouvelle version disponible. Recharger ?')) window.location.reload();
   },
 });
+
+// Outbox offline : rejoue les écritures en attente au retour du réseau.
+initOutbox();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, staleTime: 30_000 } },

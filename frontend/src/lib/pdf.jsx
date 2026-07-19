@@ -6,6 +6,7 @@ import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/r
 import { supabase, PHOTOS_BUCKET } from './supabase.js';
 import { familleLabel } from './familles.js';
 import { hashSnapshot } from './hash.js';
+import { isOffline, enqueue } from './outbox.js';
 
 const styles = StyleSheet.create({
   page:      { padding: 32, fontFamily: 'Helvetica', fontSize: 10, color: '#0f1117' },
@@ -222,21 +223,53 @@ export async function buildAndDownloadReport({
   a.remove();
   URL.revokeObjectURL(url);
 
-  await supabase.from('rapports').insert({
+  // Trace du rapport en base (offline : mis en file dans l'outbox, l'id est
+  // généré côté client pour que les liaisons photos restent valides au rejeu).
+  const rapportRow = {
     site_id: site.id,
     famille: famille ?? null,
     niveau:  niveau  ?? null,
-  });
+  };
+  let rapportId = null;
+  if (isOffline()) {
+    rapportId = crypto.randomUUID();
+    await enqueue({ kind: 'db', table: 'rapports', op: 'insert', payload: { id: rapportId, ...rapportRow } });
+  } else {
+    const { data: inserted } = await supabase.from('rapports').insert(rapportRow).select().single();
+    rapportId = inserted?.id ?? null;
+  }
+
+  // Liaison avant/après : les photos qualifiées (phase 'avant'/'apres') des
+  // équipements inclus sont rattachées au rapport généré (dernier rapport
+  // gagnant en cas de régénération).
+  if (rapportId) {
+    const phasedIds = equipements
+      .flatMap((e) => e.photos ?? [])
+      .filter((p) => p.phase === 'avant' || p.phase === 'apres')
+      .map((p) => p.id);
+    for (const photoId of phasedIds) {
+      if (isOffline()) {
+        await enqueue({ kind: 'db', table: 'photos', op: 'update', payload: { rapport_id: rapportId }, match: { id: photoId } });
+      } else {
+        await supabase.from('photos').update({ rapport_id: rapportId }).eq('id', photoId);
+      }
+    }
+  }
 
   // Snapshot versionné pour le diff temporel / historique.
-  await supabase.from('audit_snapshots').insert({
+  const snapshotRow = {
     site_id: site.id,
     data: snapshot,
     hash_sha256: hash,
     famille_scope: famille ?? null,
     niveau_scope:  niveau  ?? null,
     signed_by: signedBy ?? null,
-  });
+  };
+  if (isOffline()) {
+    await enqueue({ kind: 'db', table: 'audit_snapshots', op: 'insert', payload: snapshotRow });
+  } else {
+    await supabase.from('audit_snapshots').insert(snapshotRow);
+  }
 
-  return { hash };
+  return { hash, rapportId };
 }
