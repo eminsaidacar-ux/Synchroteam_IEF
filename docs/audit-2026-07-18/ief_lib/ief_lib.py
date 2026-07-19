@@ -1,8 +1,10 @@
 # =============================================================================
 #  ief_lib.py — Bibliothèque anti-erreur unifiée IEF & CO
-#  v1.1 — 18/07/2026 — Synthèse post-contre-expertise (Agent E, §8)
-#  Base : Agent A v1.0, corrigée et étendue par les livrables B (mémoire),
-#  C (cash) et E (contre-expertise). FICHIER UNIQUE ET CANONIQUE.
+#  v1.2 — 19/07/2026 — Intégration des résultats de campagne (ordre de mission
+#  n°2, Chantier 1). Base : v1.1 (synthèse post-contre-expertise Agent E).
+#  FICHIER UNIQUE ET CANONIQUE — stocké en article Odoo Knowledge 172
+#  (PAS 171 : déjà occupé), bloc <pre>, hash SHA-256 de référence en tête
+#  de l'article, vérifié après chaque collage.
 #
 #  PRINCIPE : ces fonctions sont le SEUL chemin d'écriture vers Odoo et
 #  Synchroteam. Chaque fonction REFUSE d'écrire (ErreurValidation) si un
@@ -12,7 +14,7 @@
 #  Stdlib Python 3.10+ uniquement. Rien à installer. AUCUN import requests (C-4).
 #
 # -----------------------------------------------------------------------------
-#  PROTOCOLE SECRETS (A-9 / R-1) — À RESPECTER À LA LETTRE
+#  PROTOCOLE SECRETS (A-9 / R-1) — À RESPECTER À LA LETTRE — INCHANGÉ en v1.2
 #  1. Les clés ne sont JAMAIS écrites dans un livrable, un article Odoo, ni
 #     recitées dans la conversation. Emin les injecte au lancement de session
 #     dans UN SEUL message dédié qui exécute :
@@ -22,53 +24,22 @@
 #         os.environ["ODOO_PARTNER_EMIN"] = "<id res.partner d'Emin>"
 #     Ce message n'est plus JAMAIS cité, résumé ni recopié ensuite.
 #  2. Rotation MENSUELLE des deux clés (Odoo + Synchroteam).
-#  3. PRIORITÉ 1 (AM-7 requalifié par E) : créer un utilisateur Odoo dédié
-#     « TEO API » (droits Ventes/CRM/Mail, pas Comptabilité-écriture, pas
-#     Paramètres), générer sa clé, ajuster ODOO_UID. Tant que la clé est celle
-#     du compte d'Emin (uid 6), TEO écrit avec les pleins pouvoirs du dirigeant.
+#  3. Décision D2 (arbitrée par Emin, 18/07/2026) : PAS d'utilisateur API Odoo
+#     dédié pour le moment — la lib continue avec la clé actuelle via
+#     os.environ (uid 6). R-1 reste ouvert au registre des risques mais
+#     l'arbitrage est posé : NE PAS re-proposer.
 #  Variables optionnelles (défauts sinon) : ODOO_URL, ODOO_DB, ODOO_UID,
 #  SYNCHROTEAM_DOMAIN. AUCUNE variable d'environnement de seuil (A-4) : le
 #  barème des mails sensibles est EN DUR dans SEUILS_MAIL_HT, amendable
 #  uniquement via l'article 140 validé par Emin.
+# -----------------------------------------------------------------------------
+#  CAMPAGNE DE VÉRIFICATION : EXÉCUTÉE 13/13 LE 18/07/2026, EN PRODUCTION.
+#  Résultats FIGÉS dans ce fichier (constantes + logique) — ne pas re-vérifier.
+#  Les 14 marqueurs « A VERIFIER EN REEL » de la v1.1 sont retirés ; chaque
+#  point figé est commenté « CAMPAGNE 18/07/2026 (figé) » à l'endroit du code.
+#  Le contrôle de session courant est autotest() (LECTURE SEULE, ~10 points,
+#  coût minime), à lancer en DÉBUT de session avant toute écriture.
 # =============================================================================
-
-CAMPAGNE_DE_VERIFICATION = """
-CAMPAGNE « À VÉRIFIER EN RÉEL » — 1 session avec les clés, AVANT de figer
-l'article 171 (contre-expertise E §8.2). Chaque point ci-dessous est aussi
-marqué « # A VERIFIER EN REEL: » à l'endroit exact du code concerné.
-
- 1. Enveloppe des listes Synchroteam ('data' vs 'records') :
-      st_get("job/list", pageSize=1)  -> noter les clés de la réponse.
- 2. Statuts de clôture des jobs (casse comprise), pour ST_STATUTS_TERMINES :
-      sorted({j.get("status") for j in st_list("job/list", pageSize=100)})
- 3. Payloads job/send (site {id} / customer {id} / address) et job/schedule
-    (technician {id}) : créer UN job de test via creer_job() + planifier_job().
- 4. Paramètre dateFrom de job/list :
-      st_get("job/list", pageSize=1, dateFrom="2026-07-01 00:00:00")
- 5. Timezone des datetimes Synchroteam (UTC ou Europe/Paris ?) :
-      st_get("job/details", id=<id connu>)  -> comparer scheduledStart à la
-      réalité terrain. La lib travaille en Europe/Paris (R-4).
- 6. Champ taxes des lignes de devis en Odoo 19 ('tax_id' vs 'tax_ids') :
-      odoo("sale.order.line", "fields_get", [["tax_id", "tax_ids"]],
-           {"attributes": ["string"]})
- 7. Rattachement des sites EG (fiches is_company après import ?) :
-      odoo("res.partner", "search_count",
-           [[["id", "=", <id site>], ["id", "child_of", 9]]])  sur 2-3 sites.
- 8. Stages CRM manquants (NOUVEAU, À FACTURER) :
-      odoo("crm.stage", "search_read", [[]], {"fields": ["id", "name"]})
-      -> figer les ids dans STAGES_CRM (interdit de deviner).
- 9. Type d'activité « À faire » :
-      odoo("mail.activity.type", "search_read", [[]], {"fields": ["id", "name"]})
-10. Conditions de paiement du partner 9 (sinon 1.c ment) :
-      odoo("res.partner", "read", [[9]], {"fields": ["property_payment_term_id"]})
-11. Coût/tolérance du search_count mail.message (détection premier contact,
-    A-3) : chronométrer un appel sur un partner à fort historique.
-12. Structure de l'article 160 (une signature unique ? plusieurs ?) — si
-    plusieurs, passer signature_html explicitement à envoyer_mail_client().
-13. Champs disponibles sur mail.mail pour le diagnostic d'envoi (A-2) :
-      odoo("mail.mail", "fields_get", [["state", "failure_reason"]],
-           {"attributes": ["string"]})
-"""
 
 import os
 import re
@@ -77,12 +48,13 @@ import uuid
 import base64
 import hashlib
 import datetime
+import unicodedata
 import html as _html
 import xmlrpc.client
 from urllib import request as _urlreq, parse as _urlparse, error as _urlerr
 from zoneinfo import ZoneInfo
 
-VERSION = "1.1"
+VERSION = "1.2"
 
 # ----------------------------------------------------------------------------
 # TEMPS — R-4 : Europe/Paris EXPLICITE partout, jamais de datetime.now() naïf
@@ -99,11 +71,35 @@ def aujourdhui():
     return maintenant().date()
 
 def age_j(date_str):
-    """Âge en jours d'une date Odoo 'YYYY-MM-DD' ou 'YYYY-MM-DD HH:MM:SS'."""
+    """Âge en jours d'une date Odoo 'YYYY-MM-DD' ou 'YYYY-MM-DD HH:MM[:SS]'
+    (couvre aussi les datetimes Synchroteam 'AAAA-MM-JJ HH:MM')."""
     if not date_str:
         return None
     return (aujourdhui() - datetime.datetime.strptime(
         str(date_str)[:10], "%Y-%m-%d").date()).days
+
+# CAMPAGNE 18/07/2026 (figé, point timezone) : les datetimes Synchroteam sont
+# en HEURE LOCALE Europe/Paris, format « AAAA-MM-JJ HH:MM », SANS suffixe de
+# timezone. Aucune conversion UTC à faire — parser tel quel et poser TZ_PARIS.
+FORMATS_DT_ST = ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S")
+
+def st_parse_dt(s):
+    """Parse un datetime Synchroteam (« AAAA-MM-JJ HH:MM », heure locale
+    Europe/Paris sans suffixe TZ — campagne, figé) → datetime AWARE
+    Europe/Paris. Tolère les secondes. None/'' → None. Raise si illisible
+    (jamais de datetime deviné)."""
+    if not s:
+        return None
+    s = str(s).strip()
+    for fmt in FORMATS_DT_ST:
+        try:
+            return datetime.datetime.strptime(s, fmt).replace(tzinfo=TZ_PARIS)
+        except ValueError:
+            continue
+    raise ErreurValidation(
+        [f"Datetime Synchroteam illisible : {s!r} — formats attendus "
+         f"{FORMATS_DT_ST} (heure locale Europe/Paris, sans suffixe TZ — "
+         f"campagne 18/07/2026, figé)."])
 
 # ----------------------------------------------------------------------------
 # CONSTANTES MÉTIER (doctrine IEF — ne modifier que sur amendement validé Emin)
@@ -123,7 +119,9 @@ COULEUR_LIEN = "#E30613"          # liens mails : rouge, gras, souligné
 
 ARTICLE_SIGNATURES = 160   # signatures canoniques (lues par la lib, X-4)
 ARTICLE_REGISTRE   = 169   # registre des dossiers ouverts (format Agent B)
-ARTICLE_LIB        = 171   # code canonique de cette lib (hash R-7)
+ARTICLE_STAGES     = 170   # référentiel des ids canoniques de stages CRM
+ARTICLE_LIB        = 172   # code canonique de cette lib (hash R-7) —
+                           # 172, PAS 171 (171 déjà occupé — décision D1)
 
 TECHNICIENS = {   # ids Synchroteam — seule liste d'assignation autorisée
     "emin":   179815,   # TECH099
@@ -135,16 +133,27 @@ TECHNICIENS = {   # ids Synchroteam — seule liste d'assignation autorisée
 # audit_flash() le surveille en aval (rien ne dort au tampon > 48 h).
 TECHNICIENS_PLANIFIABLES = {k: v for k, v in TECHNICIENS.items() if k != "tampon"}
 
-STAGES_CRM = {   # ids crm.stage connus (§3 du dossier de mission)
-    "a_planifier":            7,
-    "intervention_planifiee": 5,
-    "commande_a_faire":       6,
-    "cloture":                9,
-    # "nouveau" et "a_facturer" : ids NON documentés — résolus par
-    # resoudre_stage() (recherche stricte, jamais devinés), puis figés ici.
-    "nouveau":                None,
-    "a_facturer":             None,
+# STAGES CRM — FIGÉS par la campagne du 18/07/2026 (référentiel article 170).
+# DÉCOUVERTE CRITIQUE (campagne) : la base contient 17 stages, DEUX pipelines
+# mélangés. « DEVIS ENVOYÉ » existe en id 4 ET 14 ; « DEVIS ACCEPTÉ » en id 10
+# ET 12. Toute résolution PAR NOM est donc ambiguë PAR CONSTRUCTION : l'ancienne
+# resoudre_stage() (v1.1) levait une ambiguïté dès le premier appel — supprimée,
+# remplacée par ce dictionnaire figé + le contrôle anti-renommage de stage_id().
+STAGES = {
+    "NOUVEAU":                 2,
+    "DEVIS A FAIRE":           3,
+    "DEVIS ENVOYE":            4,    # doublon id 14 = second pipeline, INTERDIT
+    "INTERVENTION PLANIFIEE":  5,
+    "COMMANDE A FAIRE":        6,
+    "A PLANIFIER":             7,
+    "A FACTURER":              8,
+    "CLOTURE":                 9,
+    "DEVIS ACCEPTE":          10,    # doublon id 12 = second pipeline, INTERDIT
 }
+# LISTE NOIRE — ids du SECOND pipeline : INTERDITS à la lib, où que ce soit.
+# stage_id() raise si l'un d'eux est atteint ; ne JAMAIS les écrire en stage_id
+# d'une carte, même via un appel odoo() brut (erreur auditable).
+STAGES_INTERDITS = frozenset({12, 13, 14, 17, 18, 19})
 
 # A-4 : barème différencié EN DUR — AUCUN override par variable d'environnement
 # (l'ancien SEUIL_MAIL_SENSIBLE_HT aplatissait silencieusement le barème §5.3).
@@ -175,9 +184,10 @@ RE_MONTANT = re.compile(
 
 # A-5 / X-6 : statuts de clôture Synchroteam CENTRALISÉS — une seule constante
 # pour toute la lib (audit_flash, rattacher_sr, jobs_termines, filet A).
-# A VERIFIER EN REEL: liste exacte et casse des statuts (campagne, point 2) —
-# A testait ("completed","validated","closed"), C ("completed","validated").
-ST_STATUTS_TERMINES = ("completed", "validated", "closed")
+# CAMPAGNE 18/07/2026 (figé) : statuts observés en production =
+# created, scheduled, synchronized, paused, completed, validated, cancelled.
+# « closed » n'existe pas. Terminé = completed OU validated, point final.
+ST_STATUTS_TERMINES = {"completed", "validated"}
 
 ETATS_REGISTRE = ("NOUVEAU", "A_CHIFFRER", "DEVIS_ENVOYE", "ATTENTE_CLIENT",
                   "A_PLANIFIER", "PLANIFIE", "A_FACTURER", "BLOQUE")
@@ -280,27 +290,50 @@ def _relecture(model, rec_id, attentes):
             [f"RELECTURE POST-ÉCRITURE EN ÉCHEC sur {model} id {rec_id}"] + ecarts)
     return rec
 
-def resoudre_stage(cle):
-    """Résout un id de stage CRM MANQUANT par recherche stricte (jamais deviné,
-    jamais inventé). Résultat figé dans STAGES_CRM pour la session — à reporter
-    ensuite dans ce fichier et l'article 170.
-    A VERIFIER EN REEL: noms exacts des colonnes NOUVEAU / À FACTURER (point 8)."""
-    if STAGES_CRM.get(cle):
-        return STAGES_CRM[cle]
-    motifs = {"a_facturer": "facturer", "nouveau": "nouveau"}
-    motif = motifs.get(cle)
-    if not motif:
-        raise ErreurValidation([f"Stage {cle!r} inconnu de STAGES_CRM et sans "
-                                f"motif de résolution — interdit de deviner."])
-    rows = odoo("crm.stage", "search_read", [[["name", "ilike", motif]]],
-                {"fields": ["id", "name"]})
-    if len(rows) != 1:
+_STAGES_VERIFIES = set()   # clés déjà contrôlées cette session (1 read chacune)
+
+def _normaliser_nom_stage(nom):
+    """Normalise un nom de stage pour comparaison : accents retirés (É→E, À→A,
+    Ô→O…), majuscules, underscores → espaces, espaces multiples réduits.
+    Nécessaire car les noms réels en base portent des accents (« DEVIS ENVOYÉ »,
+    « À PLANIFIER », « CLÔTURÉ ») et les clés du dict STAGES n'en portent pas."""
+    s = unicodedata.normalize("NFKD", str(nom or ""))
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", s.upper().replace("_", " ")).strip()
+
+def stage_id(nom):
+    """Id d'un stage CRM depuis le dictionnaire FIGÉ `STAGES` — remplace la
+    resoudre_stage() de v1.1 (CAMPAGNE 18/07/2026 : 17 stages, 2 pipelines
+    mélangés, doublons DEVIS ENVOYÉ 4/14 et DEVIS ACCEPTÉ 10/12 → toute
+    recherche par nom est ambiguë par construction ; interdit de deviner).
+    - PARADE AU RENOMMAGE : au PREMIER usage d'un stage dans la session, read
+      du nom réel en base et comparaison (normalisée accents/casse) au nom
+      attendu ; raise si divergence — le jour où quelqu'un renomme/réordonne
+      un stage, la lib S'ARRÊTE au lieu d'écrire dans la mauvaise colonne.
+      Divergence = re-figer STAGES + l'article 170 AVANT toute écriture CRM.
+    - LISTE NOIRE : un id du second pipeline (STAGES_INTERDITS) fait raise."""
+    cle = _normaliser_nom_stage(nom)
+    if cle not in STAGES:
         raise ErreurValidation(
-            [f"Résolution du stage {cle!r} ambiguë ({len(rows)} colonnes "
-             f"matchent {motif!r} : {[(r['id'], r['name']) for r in rows]}) — "
-             f"lister crm.stage et figer l'id à la main dans STAGES_CRM."])
-    STAGES_CRM[cle] = rows[0]["id"]
-    return STAGES_CRM[cle]
+            [f"Stage {nom!r} inconnu du dictionnaire figé STAGES "
+             f"({sorted(STAGES)}) — interdit de deviner un id de stage."])
+    sid = STAGES[cle]
+    if sid in STAGES_INTERDITS:
+        raise ErreurValidation(
+            [f"Stage {cle!r} → id {sid} : id du SECOND pipeline "
+             f"({sorted(STAGES_INTERDITS)}), INTERDIT à la lib (campagne "
+             f"18/07/2026) — corriger STAGES, ne jamais écrire cet id."])
+    if cle not in _STAGES_VERIFIES:
+        rows = odoo("crm.stage", "read", [[sid]], {"fields": ["name"]})
+        reel = rows[0]["name"] if rows else None
+        if reel is None or _normaliser_nom_stage(reel) != cle:
+            raise ErreurValidation(
+                [f"Stage id {sid} : nom réel en base {reel!r} ≠ nom attendu "
+                 f"{cle!r} — un stage a été renommé ou déplacé. STOP : "
+                 f"re-figer STAGES (et l'article {ARTICLE_STAGES}) avant "
+                 f"toute écriture CRM."])
+        _STAGES_VERIFIES.add(cle)
+    return sid
 
 # ----------------------------------------------------------------------------
 # TRANSPORT SYNCHROTEAM (v3, Basic Auth domaine:clé — urllib stdlib, C-4 :
@@ -336,21 +369,20 @@ def st_post(path, payload):
 
 def st_list(path, **params):
     """A-5 / C-2 / X-6 : fonction de liste Synchroteam UNIQUE pour toute la lib.
-    L'enveloppe de réponse était lue 'data' par A et 'records' par C — une des
-    deux clés est fausse et retournait une LISTE VIDE SILENCIEUSE (la pire
-    classe de bug pour un système anti-erreur). Ici : on tente 'data' puis
-    'records', et on RAISE si AUCUNE des deux n'est présente. Jamais de
-    .get(..., []) par défaut sur une enveloppe.
-    A VERIFIER EN REEL: clé d'enveloppe réelle — st_get("job/list", pageSize=1)
-    (campagne, point 1), puis simplifier cette fonction à la clé confirmée."""
+    CAMPAGNE 18/07/2026 (figé) : l'enveloppe réelle des listes est
+    {page, pageSize, records, recordsTotal, data} — le tableau est `data`
+    (`records` est un COMPTEUR d'enveloppe, PAS une liste : la lecture
+    'records' de l'Agent C aurait produit des listes vides silencieuses).
+    Enveloppe FERME : raise si `data` absent — jamais de .get(..., []) par
+    défaut sur une enveloppe (pire classe de bug d'un système anti-erreur)."""
     rep = st_get(path, **params)
-    for cle in ("data", "records"):
-        if cle in rep:
-            return rep[cle] or []
-    raise ErreurValidation(
-        [f"Réponse Synchroteam {path} sans clé 'data' ni 'records' — clés "
-         f"reçues : {sorted(rep)[:10]}. Enveloppe inconnue : NE PAS conclure "
-         f"« rien à signaler », vérifier en réel (campagne, point 1)."])
+    if "data" not in rep:
+        raise ErreurValidation(
+            [f"Réponse Synchroteam {path} sans clé 'data' — clés reçues : "
+             f"{sorted(rep)[:10]}. Enveloppe attendue (campagne, figé) : "
+             f"page, pageSize, records, recordsTotal, data. NE PAS conclure "
+             f"« rien à signaler » : diagnostiquer d'abord."])
+    return rep["data"] or []
 
 def st_pages(path, page_size=100, max_pages=50, **params):
     """Générateur de pages via st_list (pagination + filtrage LOCAL,
@@ -364,7 +396,8 @@ def st_pages(path, page_size=100, max_pages=50, **params):
         page += 1
 
 def chercher_site_st(terme, page_size=100, max_pages=30):
-    """PIÈGE §6 : sur site/list, le paramètre `search` NE FILTRE PAS.
+    """PIÈGE §6 : sur site/list, le paramètre `search` NE FILTRE PAS
+    (RE-CONFIRMÉ par la campagne du 18/07/2026 — figé).
     On pagine tout et on filtre LOCALEMENT (nom + adresse), point final."""
     terme_l = str(terme).lower()
     trouves = []
@@ -378,7 +411,9 @@ def chercher_site_st(terme, page_size=100, max_pages=30):
 
 def _trouver_job_st_par_myid(my_id, jours=60):
     """Retrouve un job par myId : pagination + filtre local.
-    A VERIFIER EN REEL: paramètre dateFrom de job/list (campagne, point 4)."""
+    CAMPAGNE 18/07/2026 (figé) : dateFrom/dateTo de job/list FONCTIONNENT,
+    historique profond accessible (1 245 jobs relus sur la fenêtre 2020-2024).
+    Le filtre local reste : on ne filtre par myId que côté lib."""
     depuis = (aujourdhui() - datetime.timedelta(days=jours)).strftime("%Y-%m-%d 00:00:00")
     for lot in st_pages("job/list", dateFrom=depuis):
         for j in lot:
@@ -435,7 +470,9 @@ def _v_site_eg(site_partner_id):
     A-6 : le rattachement est testé par search_count(child_of 9) et non plus
     par commercial_partner_id — robuste aux fiches sites marquées is_company
     après import en masse (qui sont leur propre commercial_partner_id).
-    A VERIFIER EN REEL: comportement child_of sur 2-3 sites réels (point 7)."""
+    CAMPAGNE 18/07/2026 (figé) : child_of 9 VALIDÉ en prod sur 3 sites réels
+    (commercial_partner_id = 9, is_company = False — les deux tests marchent ;
+    on GARDE child_of, plus robuste aux imports futurs)."""
     if not site_partner_id:
         return ["site_partner_id manquant : l'adresse de livraison = le SITE, toujours."], None
     sid = int(site_partner_id)
@@ -494,12 +531,13 @@ def nouveau_ticket_interne(partner_id, date=None, suffixe=""):
 # 1) CRÉER UNE CARTE EG (crm.lead)
 # ============================================================================
 def creer_carte_eg(titre, site_partner_id, ticket=None, astreinte=False,
-                   description="", stage="a_planifier"):
+                   description="", stage="A PLANIFIER"):
     """Carte pipeline EG. REFUSE d'écrire si :
     - pas de ticket (SR réel ou AST provisoire) — sauf astreinte=True qui en génère un ;
     - site absent, sans adresse, ou non rattaché au parent 9 (child_of, A-6) ;
     - la description contient un montant ;
-    - stage inconnu (interdit de deviner un id de stage).
+    - stage hors du dictionnaire figé STAGES, renommé en base, ou du second
+      pipeline (liste noire) — contrôles portés par stage_id().
     Le ticket est posé DANS LE TITRE : c'est lui qui rend le rattachement
     différé (§7.4) déterministe."""
     violations = []
@@ -513,11 +551,11 @@ def creer_carte_eg(titre, site_partner_id, ticket=None, astreinte=False,
 
     violations += _v_description_sans_montant(description)
 
-    stage_id = STAGES_CRM.get(stage)
-    if stage_id is None:
-        violations.append(
-            f"Stage {stage!r} sans id connu dans STAGES_CRM — le résoudre via "
-            f"resoudre_stage() ou crm.stage search_read, ne jamais deviner.")
+    sid = None
+    try:
+        sid = stage_id(stage)   # dict figé + anti-renommage + liste noire
+    except ErreurValidation as e:
+        violations += e.violations
 
     if violations:
         raise ErreurValidation(violations)
@@ -534,13 +572,13 @@ def creer_carte_eg(titre, site_partner_id, ticket=None, astreinte=False,
         "name": nom_carte,
         "partner_id": int(site_partner_id),
         "type": "opportunity",
-        "stage_id": stage_id,
+        "stage_id": sid,
         "description": desc,
     })
     _relecture("crm.lead", lead_id, {
         "name": str(ticket),          # le ticket doit être DANS le nom
         "partner_id": int(site_partner_id),
-        "stage_id": stage_id,
+        "stage_id": sid,
     })
     _log("creer_carte_eg", lead_id=lead_id, ticket=str(ticket),
          astreinte=bool(astreinte))
@@ -617,9 +655,9 @@ def creer_devis(lignes, reference_client, site_partner_id=None, eg=True,
             "product_id": int(l["product_id"]),
             "product_uom_qty": float(l["qte"]),
             "price_unit": round(float(l["prix_ht"]), 2),
-            # A VERIFIER EN REEL: 'tax_id' vs 'tax_ids' en Odoo 19 (point 6) —
-            # l'échec serait bruyant (champ inconnu), pas silencieux.
-            "tax_id": [[6, 0, [TVA_20_ID]]],     # TVA 20 % imposée, jamais 10 %
+            # CAMPAGNE 18/07/2026 (figé) : en Odoo 19 le champ des taxes de
+            # ligne est `tax_ids` — `tax_id` N'EXISTE PLUS. TVA 20 % = id 36.
+            "tax_ids": [[6, 0, [TVA_20_ID]]],    # TVA 20 % imposée, jamais 10 %
         }
         # A-7 : ne JAMAIS envoyer None en XML-RPC — clé omise si libellé vide,
         # Odoo calcule alors la description depuis le produit.
@@ -650,10 +688,10 @@ def creer_devis(lignes, reference_client, site_partner_id=None, eg=True,
     so = odoo("sale.order", "read", [[so_id]],
               {"fields": ["order_line", "name", "amount_untaxed"]})[0]
     for ol in odoo("sale.order.line", "read", [so["order_line"]],
-                   {"fields": ["tax_id", "price_unit", "name"]}):
-        if ol["tax_id"] != [TVA_20_ID]:
+                   {"fields": ["tax_ids", "price_unit", "name"]}):
+        if ol["tax_ids"] != [TVA_20_ID]:      # Odoo 19 : tax_ids (campagne, figé)
             raise ErreurValidation(
-                [f"Devis {so['name']} : ligne « {ol['name']} » avec taxes {ol['tax_id']} "
+                [f"Devis {so['name']} : ligne « {ol['name']} » avec taxes {ol['tax_ids']} "
                  f"au lieu de [{TVA_20_ID}] — corriger avant tout envoi."])
     _log("creer_devis", so_id=so_id, name=so["name"],
          reference=str(reference_client), eg=bool(eg),
@@ -737,16 +775,20 @@ def creer_variante_catalogue(template_id, attribut_id, valeur):
 # 4) CRÉER / PLANIFIER UN JOB SYNCHROTEAM
 # ============================================================================
 def creer_job(my_id, description="", site_st_id=None, customer_st_id=None,
-              adresse=None):
+              adresse=None, type_nom=None):
     """Job Synchroteam. REFUSE d'écrire si :
     - my_id absent ou hors format (SR, AST ou IEF — A-1 : le ticket interne
       universel couvre les dossiers non-EG ; jamais de job sans ticket).
-      myId est IRRÉCUPÉRABLE après clôture du rapport (erreur historique
-      n°2) : il est donc posé À LA CRÉATION, premier argument, obligatoire ;
+      myId est VERROUILLÉ après clôture du rapport (erreur historique n°2,
+      re-confirmé en campagne) : posé À LA CRÉATION, premier argument,
+      obligatoire ;
     - ni site ni adresse (l'adresse de livraison est obligatoire) ;
     - la description contient un montant.
     Relecture par job/details après création.
-    A VERIFIER EN REEL: format des payloads site/customer/address (point 3)."""
+    CAMPAGNE 18/07/2026 (figé) : payload job/send VALIDÉ EN PROD =
+    {customer:{id}, site:{id}, type:{name}, description, myId} ; job/send
+    AVEC "id" = mise à jour PARTIELLE (utilisé par rattacher_sr).
+    type_nom (ex. « Dépannage ») alimente type:{name} du payload confirmé."""
     violations = []
     if not my_id or not (RE_SR.search(str(my_id)) or RE_AST.search(str(my_id))
                          or RE_IEF.search(str(my_id))):
@@ -765,11 +807,13 @@ def creer_job(my_id, description="", site_st_id=None, customer_st_id=None,
 
     payload = {"myId": str(my_id), "description": description or ""}
     if site_st_id:
-        payload["site"] = {"id": int(site_st_id)}
+        payload["site"] = {"id": int(site_st_id)}      # format confirmé en prod
     if customer_st_id:
-        payload["customer"] = {"id": int(customer_st_id)}
+        payload["customer"] = {"id": int(customer_st_id)}   # confirmé en prod
+    if type_nom:
+        payload["type"] = {"name": str(type_nom)}      # type:{name} — confirmé
     if adresse:
-        payload["address"] = adresse
+        payload["address"] = adresse   # fallback hors payload campagne (site absent)
 
     res = st_post("job/send", payload)   # sans "id" = création ; avec "id" = MàJ PARTIELLE
     job_id = res.get("id") or (res.get("data") or {}).get("id")
@@ -796,8 +840,11 @@ def planifier_job(job_id, technicien, debut, fin, source="ordre_explicite"):
     - technicien hors de TECHNICIENS_PLANIFIABLES — le tampon TEC031 est
       REFUSÉ ici (A-7 / X-10 : « jamais une assignation finale » ; il reste
       utilisable en création de job et surveillé par audit_flash).
-    debut/fin : "AAAA-MM-JJ HH:MM:SS" (heure Europe/Paris —
-    A VERIFIER EN REEL: fuseau attendu par l'API Synchroteam, point 5)."""
+    debut/fin : "AAAA-MM-JJ HH:MM" (secondes tolérées) en HEURE LOCALE
+    Europe/Paris SANS suffixe TZ — CAMPAGNE 18/07/2026 (figé) : Synchroteam
+    travaille en heure locale Europe/Paris, aucune conversion UTC.
+    Payload job/schedule confirmé en prod :
+    {id, technician:{id}, scheduledStart, scheduledEnd} (les deux exigés)."""
     violations = []
     if source != "ordre_explicite":
         violations.append(
@@ -814,14 +861,17 @@ def planifier_job(job_id, technicien, debut, fin, source="ordre_explicite"):
     dt_debut = dt_fin = None
     for label, val in (("debut", debut), ("fin", fin)):
         try:
-            parsed = datetime.datetime.strptime(str(val), "%Y-%m-%d %H:%M:%S")
+            parsed = st_parse_dt(val)   # heure locale Europe/Paris, campagne figé
+            if parsed is None:
+                raise ValueError("datetime vide")
             if label == "debut":
                 dt_debut = parsed
             else:
                 dt_fin = parsed
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, ErreurValidation):
             violations.append(
-                f"{label}={val!r} : format exigé 'AAAA-MM-JJ HH:MM:SS' "
+                f"{label}={val!r} : format exigé 'AAAA-MM-JJ HH:MM[:SS]', "
+                f"heure locale Europe/Paris sans suffixe TZ "
                 f"(job/schedule exige scheduledStart ET scheduledEnd).")
     if dt_debut and dt_fin and dt_fin <= dt_debut:
         violations.append(f"fin ({fin}) ≤ début ({debut}).")
@@ -865,9 +915,9 @@ def signature_canonique():
     """X-4 : la signature canonique (article 160) est LUE PAR LA LIB, pas
     passée en paramètre par TEO — read chirurgical, UNE fois par session
     (cache module), jamais régénérée, jamais retapée.
-    A VERIFIER EN REEL: structure de l'article 160 (point 12) — s'il contient
-    PLUSIEURS signatures, extraire le bon bloc ici ou passer signature_html
-    explicitement à envoyer_mail_client()."""
+    CAMPAGNE 18/07/2026 : accessibilité de l'article 160 confirmée (contrôlée
+    à chaque session par autotest()). S'il venait à contenir PLUSIEURS
+    signatures, passer signature_html explicitement à envoyer_mail_client()."""
     global _CACHE_SIGNATURE
     if _CACHE_SIGNATURE is None:
         art = odoo("knowledge.article", "read", [[ARTICLE_SIGNATURES]],
@@ -900,7 +950,8 @@ def _detecter_sensibilite(sujet, corps, montant_ht, categorie_client,
         # historique masquait tout premier contact ; et la logique est
         # « un externe sans historique → premier contact », pas l'inverse.
         externes = [int(p) for p in destinataires_pids if int(p) != emin_pid]
-        # A VERIFIER EN REEL: coût du search_count mail.message (point 11).
+        # CAMPAGNE 18/07/2026 (figé) : search_count mail.message mesuré à
+        # ~0,8 s sur un partner à fort historique — coût acceptable.
         premier_contact = any(
             odoo("mail.message", "search_count",
                  [[["partner_ids", "in", [int(pid)]]]]) == 0   # A-3 : liste, pas scalaire
@@ -1032,11 +1083,12 @@ def envoyer_mail_client(model, res_id, sujet, corps_html, destinataires_pids,
                                    signature_html=signature_html)
     if not controle["message_trouve"]:
         # A-2 : diagnostic par la file d'envoi mail.mail (outgoing/exception).
-        # A VERIFIER EN REEL: champs mail.mail disponibles (point 13).
+        # CAMPAGNE 18/07/2026 (figé) : champs `state` et `failure_reason`
+        # disponibles sur mail.mail — failure_reason ajouté au diagnostic.
         try:
             file_mail = odoo("mail.mail", "search_read",
                              [[["state", "in", ["outgoing", "exception"]]]],
-                             {"fields": ["id", "state", "subject"],
+                             {"fields": ["id", "state", "failure_reason", "subject"],
                               "order": "id desc", "limit": 5})
         except Exception as e:                    # noqa: BLE001
             file_mail = f"lecture mail.mail impossible : {repr(e)[:200]}"
@@ -1206,21 +1258,20 @@ def rattacher_sr(sr, ast_id):
 # 7) CLÔTURE TERRAIN → FACTURATION (C-1 : DANS la lib, ordre sûr, relectures)
 # ============================================================================
 _ACTIVITY_TYPE_TODO = None
+ACTIVITY_TYPE_TODO_FALLBACK = 4   # CAMPAGNE 18/07/2026 (figé) : id 4 = « To-Do »
 
 def _activity_type_todo():
-    """C-5 : activity_type_id résolu DYNAMIQUEMENT (plus jamais 4 en dur).
-    Résultat mis en cache session ; à figer ensuite dans l'article 170.
-    A VERIFIER EN REEL: noms des types d'activité (campagne, point 9)."""
+    """C-5 : activity_type_id résolu DYNAMIQUEMENT, avec 4 en FALLBACK.
+    CAMPAGNE 18/07/2026 (figé) : mail.activity.type id 4 = To-Do confirmé en
+    prod — le « 4 en dur » historique était juste. On CONSERVE la résolution
+    dynamique (robuste à une réinstallation du module mail) ; si la recherche
+    par nom ne rend rien, on retombe sur l'id 4 confirmé au lieu de bloquer."""
     global _ACTIVITY_TYPE_TODO
     if _ACTIVITY_TYPE_TODO is None:
         rows = odoo("mail.activity.type", "search_read",
                     [[["name", "in", ["To-Do", "À faire", "A faire", "Todo", "To Do"]]]],
                     {"fields": ["id", "name"], "limit": 1})
-        if not rows:
-            raise ErreurValidation(
-                ["Type d'activité « À faire » introuvable — lister "
-                 "mail.activity.type (campagne, point 9) et figer l'id."])
-        _ACTIVITY_TYPE_TODO = rows[0]["id"]
+        _ACTIVITY_TYPE_TODO = rows[0]["id"] if rows else ACTIVITY_TYPE_TODO_FALLBACK
     return _ACTIVITY_TYPE_TODO
 
 def cloturer_terrain(ticket, carte_id=None):
@@ -1272,7 +1323,7 @@ def cloturer_terrain(ticket, carte_id=None):
     if violations:
         raise ErreurValidation(violations)
 
-    stage_a_facturer = resoudre_stage("a_facturer")
+    stage_a_facturer = stage_id("A FACTURER")   # dict figé + anti-renommage
 
     # --- (2) L'activité D'ABORD (porteur du délai J+2) ---
     res_model_id = odoo("ir.model", "search", [[["model", "=", "crm.lead"]]])[0]
@@ -1512,11 +1563,15 @@ def checkpoint(lignes=None):
 # 10) CASH & PILOTAGE (Agent C, corrigé : st_list, stdlib, batch, renommages)
 # ============================================================================
 def jobs_termines(depuis_jours=21):
-    """Jobs terminés récents (statuts ST_STATUTS_TERMINES centralisés, X-6).
+    """Jobs terminés récents (ST_STATUTS_TERMINES figés : completed/validated).
     Pagination + re-filtrage LOCAL du statut (on ne fait pas confiance au
     filtre serveur). Enveloppe via st_list : jamais de vide silencieux.
-    A VERIFIER EN REEL: timezone des datetimes renvoyés (point 5) et existence
-    d'un champ dateCompleted (la date affichée ici est scheduledEnd)."""
+    CAMPAGNE 18/07/2026 (figé) : la fin RÉELLE d'un job est `actualEnd`
+    (champs actualStart/actualEnd disponibles sur job/details — ex. réel :
+    scheduled 10:00-11:30, actual 09:52-14:58, soit 3 h 30 d'écart). Le
+    filet A se base donc sur actualEnd, FALLBACK scheduledEnd si absent
+    (job clôturé sans pointage, ou liste sans le champ). Datetimes en heure
+    locale Europe/Paris « AAAA-MM-JJ HH:MM » (st_parse_dt si besoin)."""
     date_from = (maintenant() - datetime.timedelta(days=depuis_jours)
                  ).strftime("%Y-%m-%d %H:%M:%S")
     jobs = []
@@ -1525,14 +1580,15 @@ def jobs_termines(depuis_jours=21):
                  if str(j.get("status", "")).lower() in ST_STATUTS_TERMINES]
     return [{"myId": j.get("myId"), "num": j.get("num"), "status": j["status"],
              "site": (j.get("site") or {}).get("name"),
-             "fin": j.get("scheduledEnd")} for j in jobs]
+             # actualEnd d'abord (campagne, figé), scheduledEnd en fallback
+             "fin": j.get("actualEnd") or j.get("scheduledEnd")} for j in jobs]
 
 def termines_non_factures_filet_A():
     """Filet A (terrain → CRM) : jobs terminés dont la carte n'est pas en
     À FACTURER ni CLÔTURÉ. Les jobs SANS myId remontent séparément (anomalie
     de process en soi — compteur d'erreurs du point du soir)."""
-    stage_a_facturer = resoudre_stage("a_facturer")
-    stage_cloture = STAGES_CRM["cloture"]
+    stage_a_facturer = stage_id("A FACTURER")   # dict figé + anti-renommage
+    stage_cloture = stage_id("CLOTURE")
     alertes, sans_myid = [], []
     for j in jobs_termines():
         if not j["myId"]:
@@ -1593,7 +1649,10 @@ def devis_en_attente():
 
 def factures_impayees():
     """Factures postées non payées. commercial_partner_id (pas partner_id)
-    pour que les factures posées sur un site EG remontent sur SAS EG RETAIL."""
+    pour que les factures posées sur un site EG remontent sur SAS EG RETAIL.
+    CAMPAGNE 18/07/2026 (figé) : property_payment_term_id du partner 9 =
+    [4, "30 Days"], DÉJÀ POSÉ — les échéances donc les calculs de retard EG
+    sont FIABLES (aucun avertissement à afficher à ce sujet)."""
     rows = odoo("account.move", "search_read",
                 [[["move_type", "=", "out_invoice"], ["state", "=", "posted"],
                   ["payment_state", "in", ["not_paid", "partial"]]]],
@@ -1730,13 +1789,127 @@ def dashboard_cash():
     }
 
 # ============================================================================
-# 11) INTÉGRITÉ DU SOURCE (R-7) — l'article 171 est du rich-text Odoo : un
+# 11) AUTOTEST DE SESSION — LECTURE SEULE (remplace la campagne, coût minime)
+#     À lancer en DÉBUT de session, AVANT toute écriture. ~10 points figés
+#     par la campagne du 18/07/2026 : si la prod a bougé depuis, l'autotest
+#     le voit AVANT que la lib n'écrive au mauvais endroit.
+# ============================================================================
+def autotest():
+    """Vérifie SANS RIEN ÉCRIRE que les constantes figées par la campagne du
+    18/07/2026 correspondent toujours à la réalité de production. Coût : une
+    dizaine de lectures chirurgicales (≈ 2-3 s). Retourne
+    {"ok": bool, "resume": str, "rapport": [(statut, point, détail), ...]}.
+    UN SEUL ÉCHEC = ne rien écrire, diagnostiquer d'abord."""
+    rapport = []
+
+    def _pt(nom, fn):
+        try:
+            rapport.append(("OK", nom, str(fn())))
+        except Exception as e:                      # noqa: BLE001
+            rapport.append(("ECHEC", nom, repr(e)[:200]))
+
+    # 1. Stages figés : noms réels en base vs dict STAGES (parade au renommage).
+    def _stages():
+        rows = odoo("crm.stage", "read", [sorted(STAGES.values())],
+                    {"fields": ["id", "name"]})
+        noms = {r["id"]: r["name"] for r in rows}
+        ecarts = [f"id {sid} : {noms.get(sid)!r} ≠ {attendu!r}"
+                  for attendu, sid in STAGES.items()
+                  if _normaliser_nom_stage(noms.get(sid, "")) != attendu]
+        assert not ecarts, "stages renommés/déplacés — " + " ; ".join(ecarts)
+        return f"{len(STAGES)} stages conformes (ids figés article {ARTICLE_STAGES})"
+    _pt("stages_figes", _stages)
+
+    # 2. Liste noire : aucun id du second pipeline dans le dict (contrôle local).
+    def _liste_noire():
+        communs = set(STAGES.values()) & STAGES_INTERDITS
+        assert not communs, f"ids interdits présents dans STAGES : {communs}"
+        return f"second pipeline exclu : {sorted(STAGES_INTERDITS)}"
+    _pt("stages_liste_noire", _liste_noire)
+
+    # 3. TVA 20 % = tax id 36 (Odoo 19 : champ de ligne = tax_ids).
+    def _tva():
+        r = odoo("account.tax", "read", [[TVA_20_ID]], {"fields": ["name", "amount"]})
+        assert r, f"tax id {TVA_20_ID} introuvable"
+        assert abs(float(r[0]["amount"]) - 20.0) < 0.001, \
+            f"tax {TVA_20_ID} : taux {r[0]['amount']} ≠ 20 %"
+        return f"tax {TVA_20_ID} = {r[0]['name']} (20 %)"
+    _pt("tva_36", _tva)
+
+    # 4. Activité To-Do : id 4 confirmé (fallback de _activity_type_todo).
+    def _todo():
+        r = odoo("mail.activity.type", "read", [[ACTIVITY_TYPE_TODO_FALLBACK]],
+                 {"fields": ["name"]})
+        assert r, f"mail.activity.type {ACTIVITY_TYPE_TODO_FALLBACK} introuvable"
+        return f"activité {ACTIVITY_TYPE_TODO_FALLBACK} = {r[0]['name']!r}"
+    _pt("activite_todo_4", _todo)
+
+    # 5. Partner 9 : condition de paiement posée (retards EG fiables).
+    def _partner9():
+        r = odoo("res.partner", "read", [[EG_PARENT_ID]],
+                 {"fields": ["name", "property_payment_term_id"]})
+        assert r, f"partner {EG_PARENT_ID} introuvable"
+        terme = r[0].get("property_payment_term_id")
+        assert terme, (f"property_payment_term_id VIDE sur le partner "
+                       f"{EG_PARENT_ID} — les calculs de retard EG mentiraient")
+        return f"{r[0]['name']} : paiement {terme!r}"
+    _pt("partner_9_paiement", _partner9)
+
+    # 6. Enveloppe Synchroteam : job/list pageSize=1 → clé `data` (figée).
+    def _enveloppe():
+        rep = st_get("job/list", pageSize=1)
+        assert "data" in rep, f"clé 'data' absente — clés : {sorted(rep)[:10]}"
+        return f"enveloppe OK ({sorted(rep)[:6]})"
+    _pt("enveloppe_st_data", _enveloppe)
+
+    # 7. Article 160 : signatures canoniques accessibles et non vides.
+    def _signatures():
+        art = odoo("knowledge.article", "read", [[ARTICLE_SIGNATURES]],
+                   {"fields": ["body"]})
+        body = (art[0].get("body") or "").strip() if art else ""
+        assert body, f"article {ARTICLE_SIGNATURES} vide ou introuvable"
+        return f"article {ARTICLE_SIGNATURES} accessible ({len(body)} chars)"
+    _pt("article_160_signatures", _signatures)
+
+    # 8. Registre 169 accessible (le point du matin en dépend).
+    def _registre():
+        art = odoo("knowledge.article", "read", [[ARTICLE_REGISTRE]],
+                   {"fields": ["body"]})
+        assert art, f"article {ARTICLE_REGISTRE} introuvable"
+        return f"article {ARTICLE_REGISTRE} accessible"
+    _pt("registre_169", _registre)
+
+    # 9. Tampon TEC031 exclu de la planification (contrôle local X-10).
+    def _tampon():
+        assert "tampon" not in TECHNICIENS_PLANIFIABLES, \
+            "le tampon TEC031 est planifiable — violation X-10"
+        return f"planifiables : {sorted(TECHNICIENS_PLANIFIABLES)}"
+    _pt("tampon_exclu", _tampon)
+
+    # 10. Intégrité du module (R-7) : hash du fichier vs hash au chargement.
+    def _integrite():
+        h = _empreinte_source()
+        if h is None:
+            return ("exécution par collage — comparer empreinte_texte(<texte "
+                    f"collé>) au hash de référence de l'article {ARTICLE_LIB}")
+        assert h == EMPREINTE_SHA256, "le fichier a changé depuis le chargement"
+        return f"SHA-256 stable : {h[:16]}…"
+    _pt("hash_integrite", _integrite)
+
+    echecs = [p for p in rapport if p[0] == "ECHEC"]
+    resume = (f"autotest v{VERSION} : {len(rapport) - len(echecs)}/{len(rapport)} OK"
+              + (f" — ECHECS : {', '.join(p[1] for p in echecs)} — NE RIEN "
+                 f"ÉCRIRE, diagnostiquer d'abord." if echecs else ""))
+    return {"ok": not echecs, "resume": resume, "rapport": rapport}
+
+# ============================================================================
+# 12) INTÉGRITÉ DU SOURCE (R-7) — l'article 172 est du rich-text Odoo : un
 #     collage peut être altéré silencieusement (guillemets typographiques,
 #     espaces insécables). Le hash affiché au chargement se compare au hash
-#     de référence noté en tête de l'article 171 à chaque nouvelle version.
+#     de référence noté en tête de l'article 172 à chaque nouvelle version.
 # ============================================================================
 def empreinte_texte(texte):
-    """SHA-256 d'un texte (pour vérifier un code collé depuis l'article 171)."""
+    """SHA-256 d'un texte (pour vérifier un code collé depuis l'article 172)."""
     return hashlib.sha256(texte.encode("utf-8")).hexdigest()
 
 def _empreinte_source():
@@ -1754,5 +1927,6 @@ EMPREINTE_SHA256 = _empreinte_source()
 print(f"ief_lib v{VERSION} chargée — SHA-256 du source : "
       + (EMPREINTE_SHA256 or
          "indisponible (exécution par collage) — comparer "
-         "empreinte_texte(<texte collé>) au hash de référence de l'article 171."))
-# ============================== fin ief_lib v1.1 =============================
+         "empreinte_texte(<texte collé>) au hash de référence de l'article 172.")
+      + " — lancer autotest() avant toute écriture.")
+# ============================== fin ief_lib v1.2 =============================
